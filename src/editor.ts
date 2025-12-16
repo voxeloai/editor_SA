@@ -1,4 +1,4 @@
-import { Color, Mat4, Texture, Vec3, Vec4 } from 'playcanvas';
+import { Color, Mat4, path, Texture, Vec3, Vec4 } from 'playcanvas';
 
 import { EditHistory } from './edit-history';
 import { SelectAllOp, SelectNoneOp, SelectInvertOp, SelectOp, HideSelectionOp, UnhideAllOp, DeleteSelectionOp, ResetOp, MultiOp, AddSplatOp } from './edit-ops';
@@ -8,12 +8,21 @@ import { BufferWriter } from './serialize/writer';
 import { Splat } from './splat';
 import { serializePly } from './splat-serialize';
 
+const removeExtension = (filename: string) => {
+    return filename.substring(0, filename.length - path.getExtension(filename).length);
+};
+
 // register for editor and scene events
 const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: Scene) => {
     const vec = new Vec3();
     const vec2 = new Vec3();
     const vec4 = new Vec4();
     const mat = new Mat4();
+    const SH_C0 = 0.28209479177387814;
+
+    const decodeColorChannel = (value: number) => {
+        return Math.min(1, Math.max(0, 0.5 + value * SH_C0));
+    };
 
     // get the list of selected splats (currently limited to just a single one)
     const selectedSplats = () => {
@@ -74,6 +83,18 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     });
 
     events.on('camera.bound', () => {
+        scene.forceRender = true;
+    });
+
+    events.on('camera.highPrecision', () => {
+        scene.forceRender = true;
+    });
+
+    events.on('selection.changed', () => {
+        scene.forceRender = true;
+    });
+
+    events.on('tool.coordSpace', () => {
         scene.forceRender = true;
     });
 
@@ -148,6 +169,25 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
 
     events.on('camera.toggleBound', () => {
         setBoundVisible(!events.invoke('camera.bound'));
+    });
+
+    // camera.highPrecision
+
+    let highPrecision = scene.config.camera.highPrecision;
+
+    const sethighPrecision = (enabled: boolean) => {
+        if (enabled !== highPrecision) {
+            highPrecision = enabled;
+            events.fire('camera.highPrecision', highPrecision);
+        }
+    };
+
+    events.function('camera.highPrecision', () => {
+        return highPrecision;
+    });
+
+    events.on('camera.sethighPrecision', (value: boolean) => {
+        sethighPrecision(value);
     });
 
     // camera.focus
@@ -393,6 +433,62 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
         });
     });
 
+    // Eyedropper selection with SelectOp so undo/redo and selection state updates remain consistent.
+    // Threshold acts as a per-channel absolute difference: 0 only matches identical colors while 1 matches everything.
+    // TO DO:
+    // -  alternative distance metrics such as HSV.
+    // -  alternative UI for threshold, two handles for min/max?
+    events.on('select.colorMatch', (op: 'add'|'remove'|'set', point: { x: number, y: number }, threshold = 0) => {
+        const splats = selectedSplats();
+        const targetSize = scene.targetSize;
+        if (!splats.length || !targetSize || !point) {
+            return;
+        }
+
+        const { width, height } = targetSize;
+        if (!width || !height) {
+            return;
+        }
+
+        const px = Math.max(0, Math.min(width - 1, Math.floor(point.x * width)));
+        const py = Math.max(0, Math.min(height - 1, Math.floor(point.y * height)));
+        const colorThreshold = Math.min(1, Math.max(0, Number.isFinite(threshold) ? threshold : 0));
+
+        splats.forEach((splat) => {
+            scene.camera.pickPrep(splat, 'set');
+            const pickBuffer = scene.camera.pickRect(px, py, 1, 1);
+            const pickId = pickBuffer?.[0];
+            if (pickId === undefined || pickId === -1) {
+                return;
+            }
+
+            const reds = splat.splatData.getProp('f_dc_0') as Float32Array;
+            const greens = splat.splatData.getProp('f_dc_1') as Float32Array;
+            const blues = splat.splatData.getProp('f_dc_2') as Float32Array;
+            // validate pickId and color channels exist
+            if (!reds || !greens || !blues || pickId < 0 || pickId >= reds.length) {
+                return;
+            }
+            // decode color channels for the reference pixel
+            const reference = [
+                decodeColorChannel(reds[pickId]),
+                decodeColorChannel(greens[pickId]),
+                decodeColorChannel(blues[pickId])
+            ];
+            // Check if a value is within the color threshold of the reference
+            const withinThreshold = (value: number, ref: number) => Math.abs(value - ref) <= colorThreshold;
+
+            // filter to select pixels within the color threshold
+            const filter = (i: number) => {
+                return withinThreshold(decodeColorChannel(reds[i]), reference[0]) &&
+                    withinThreshold(decodeColorChannel(greens[i]), reference[1]) &&
+                    withinThreshold(decodeColorChannel(blues[i]), reference[2]);
+            };
+
+            events.fire('edit.add', new SelectOp(splat, op, filter));
+        });
+    });
+
     events.on('select.hide', () => {
         selectedSplats().forEach((splat) => {
             events.fire('edit.add', new HideSelectionOp(splat));
@@ -421,16 +517,16 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
             selected: true
         }, writer);
 
-        const buffer = writer.close();
+        const buffers = writer.close();
 
-        if (buffer) {
+        if (buffers) {
             const splat = splats[0];
 
             // wrap PLY in a blob and load it
-            const blob = new Blob([buffer], { type: 'octet/stream' });
+            const blob = new Blob(buffers as unknown as ArrayBuffer[], { type: 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
-            const { filename } = splat;
-            const copy = await scene.assetLoader.loadPly({ url, filename });
+            const filename = `${removeExtension(splat.filename)}.ply`;
+            const copy = await scene.assetLoader.load({ url, filename });
 
             if (func === 'separate') {
                 editHistory.add(new MultiOp([

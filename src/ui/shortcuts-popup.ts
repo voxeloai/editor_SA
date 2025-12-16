@@ -1,4 +1,4 @@
-import { Container, Label, Overlay, Panel } from 'pcui';
+import { Container, Label, Overlay, Panel } from '@playcanvas/pcui';
 
 import { localize } from './localization';
 
@@ -8,8 +8,11 @@ const shortcutList = [
     { key: '2', action: 'rotate' },
     { key: '3', action: 'scale' },
     { key: 'R', action: 'rect-selection' },
+    { key: 'L', action: 'lasso-selection' },
+    { key: 'P', action: 'polygon-selection' },
     { key: 'B', action: 'brush-selection' },
-    { key: 'P', action: 'picker-selection' },
+    { key: 'O', action: 'flood-selection' },
+    { key: 'E', action: 'eyedropper-selection' },
     { key: '[ ]', action: 'brush-size' },
     { key: 'Esc', action: 'deactivate-tool' },
     { header: 'selection' },
@@ -53,7 +56,7 @@ class ShortcutsPopup extends Overlay {
             if (shortcut.header) {
                 const label = new Label({
                     class: 'shortcut-header-label',
-                    text: localize(`shortcuts.${shortcut.header}`)
+                    text: localize(`popup.shortcuts.${shortcut.header}`)
                 });
 
                 const entry = new Container({
@@ -71,7 +74,7 @@ class ShortcutsPopup extends Overlay {
 
                 const action = new Label({
                     class: 'shortcut-action',
-                    text: localize(`shortcuts.${shortcut.action}`)
+                    text: localize(`popup.shortcuts.${shortcut.action}`)
                 });
 
                 const entry = new Container({
@@ -87,7 +90,7 @@ class ShortcutsPopup extends Overlay {
 
         const shortcutsPanel = new Panel({
             id: 'shortcuts-panel',
-            headerText: localize('shortcuts.title')
+            headerText: localize('popup.shortcuts.title').toUpperCase()
         });
 
         shortcutsPanel.append(shortcutsContainer);

@@ -1,17 +1,18 @@
-import { Container, Label } from 'pcui';
-import { Mat4, Vec3 } from 'playcanvas';
+import { Container, Label } from '@playcanvas/pcui';
+import { Mat4, path, Vec3 } from 'playcanvas';
 
 import { DataPanel } from './data-panel';
 import { Events } from '../events';
 import { BottomToolbar } from './bottom-toolbar';
 import { ColorPanel } from './color-panel';
+import { ExportPopup } from './export-popup';
 import { ImageSettingsDialog } from './image-settings-dialog';
 import { localize, localizeInit } from './localization';
 import { Menu } from './menu';
 import { ModeToggle } from './mode-toggle';
 // import logo from './playcanvas-logo.png';
-import logo from './voxelo-logo.png';
 import { Popup, ShowOptions } from './popup';
+import { Progress } from './progress';
 import { PublishSettingsDialog } from './publish-settings-dialog';
 import { RightToolbar } from './right-toolbar';
 import { ScenePanel } from './scene-panel';
@@ -22,8 +23,15 @@ import { Tooltips } from './tooltips';
 import { VideoSettingsDialog } from './video-settings-dialog';
 import { ViewCube } from './view-cube';
 import { ViewPanel } from './view-panel';
-import { ViewerExportPopup } from './viewer-export-popup';
+import logo from './voxelo-logo.png';
 import { version } from '../../package.json';
+
+// ts compiler and vscode find this type, but eslint does not
+type FilePickerAcceptType = unknown;
+
+const removeExtension = (filename: string) => {
+    return filename.substring(0, filename.length - path.getExtension(filename).length);
+};
 
 class EditorUI {
     appContainer: Container;
@@ -33,9 +41,7 @@ class EditorUI {
     canvas: HTMLCanvasElement;
     popup: Popup;
 
-    constructor(events: Events, remoteStorageMode: boolean) {
-        localizeInit();
-
+    constructor(events: Events) {
         // favicon
         const link = document.createElement('link');
         link.rel = 'icon';
@@ -163,7 +169,7 @@ class EditorUI {
         const shortcutsPopup = new ShortcutsPopup();
 
         // export popup
-        const viewerExportPopup = new ViewerExportPopup(events);
+        const exportPopup = new ExportPopup(events);
 
         // publish settings
         const publishSettingsDialog = new PublishSettingsDialog(events);
@@ -175,7 +181,7 @@ class EditorUI {
         const videoSettingsDialog = new VideoSettingsDialog(events);
 
         topContainer.append(popup);
-        topContainer.append(viewerExportPopup);
+        topContainer.append(exportPopup);
         topContainer.append(publishSettingsDialog);
         topContainer.append(imageSettingsDialog);
         topContainer.append(videoSettingsDialog);
@@ -199,24 +205,24 @@ class EditorUI {
             shortcutsPopup.hidden = false;
         });
 
-        events.function('show.viewerExportPopup', (filename?: string) => {
-            return viewerExportPopup.show(filename);
+        events.function('show.exportPopup', (exportType, splatNames: [string], showFilenameEdit: boolean) => {
+            return exportPopup.show(exportType, splatNames, showFilenameEdit);
         });
 
         events.function('show.publishSettingsDialog', async () => {
             // show popup if user isn't logged in
-            const canPublish = await events.invoke('publish.enabled');
-            if (!canPublish) {
+            const userStatus = await events.invoke('publish.userStatus');
+            if (!userStatus) {
                 await events.invoke('showPopup', {
                     type: 'error',
                     header: localize('popup.error'),
-                    message: localize('publish.please-log-in')
+                    message: localize('popup.publish.please-log-in')
                 });
                 return false;
             }
 
             // get user publish settings
-            const publishSettings = await publishSettingsDialog.show();
+            const publishSettings = await publishSettingsDialog.show(userStatus);
 
             // do publish
             if (publishSettings) {
@@ -236,7 +242,76 @@ class EditorUI {
             const videoSettings = await videoSettingsDialog.show();
 
             if (videoSettings) {
-                await events.invoke('render.video', videoSettings);
+
+                try {
+                    const docName = events.invoke('doc.name');
+
+                    // Determine file extension and mime type based on format
+                    let fileExtension: string;
+                    let filePickerTypes: FilePickerAcceptType[];
+
+                    // Codec name mapping for display
+                    const codecNames: Record<string, string> = {
+                        'h264': 'H.264',
+                        'h265': 'H.265',
+                        'vp9': 'VP9',
+                        'av1': 'AV1'
+                    };
+                    const codecName = codecNames[videoSettings.codec] || videoSettings.codec.toUpperCase();
+
+                    if (videoSettings.format === 'webm') {
+                        fileExtension = '.webm';
+                        filePickerTypes = [{
+                            description: `WebM Video (${codecName})`,
+                            accept: { 'video/webm': ['.webm'] }
+                        }];
+                    } else if (videoSettings.format === 'mov') {
+                        fileExtension = '.mov';
+                        filePickerTypes = [{
+                            description: `MOV Video (${codecName})`,
+                            accept: { 'video/quicktime': ['.mov'] }
+                        }];
+                    } else if (videoSettings.format === 'mkv') {
+                        fileExtension = '.mkv';
+                        filePickerTypes = [{
+                            description: `MKV Video (${codecName})`,
+                            accept: { 'video/x-matroska': ['.mkv'] }
+                        }];
+                    } else {
+                        fileExtension = '.mp4';
+                        filePickerTypes = [{
+                            description: `MP4 Video (${codecName})`,
+                            accept: { 'video/mp4': ['.mp4'] }
+                        }];
+                    }
+
+                    const suggested = `${removeExtension(docName ?? 'supersplat')}${fileExtension}`;
+
+                    let writable;
+
+                    if (window.showSaveFilePicker) {
+                        const fileHandle = await window.showSaveFilePicker({
+                            id: 'SuperSplatVideoFileExport',
+                            types: filePickerTypes,
+                            suggestedName: suggested
+                        });
+
+                        writable = await fileHandle.createWritable();
+                    }
+
+                    await events.invoke('render.video', videoSettings, writable);
+                } catch (error) {
+                    if (error instanceof DOMException && error.name === 'AbortError') {
+                        // user cancelled save dialog
+                        return;
+                    }
+
+                    await events.invoke('showPopup', {
+                        type: 'error',
+                        header: 'Failed to render video',
+                        message: `'${error.message ?? error}'`
+                    });
+                }
             }
         });
 
@@ -264,6 +339,26 @@ class EditorUI {
 
         events.on('stopSpinner', () => {
             spinner.hidden = true;
+        });
+
+        // progress
+
+        const progress = new Progress();
+
+        topContainer.append(progress);
+
+        events.on('progressStart', (header: string) => {
+            progress.hidden = false;
+            progress.setHeader(header);
+        });
+
+        events.on('progressUpdate', (options: { text: string, progress: number }) => {
+            progress.setText(options.text);
+            progress.setProgress(options.progress);
+        });
+
+        events.on('progressEnd', () => {
+            progress.hidden = true;
         });
 
         // initialize canvas to correct size before creating graphics device etc

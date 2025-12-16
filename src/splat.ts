@@ -11,7 +11,6 @@ import {
     BoundingBox,
     Color,
     Entity,
-    GSplat,
     GSplatData,
     GSplatResource,
     Mat4,
@@ -50,7 +49,7 @@ class Splat extends Element {
     splatData: GSplatData;
     numSplats = 0;
     numDeleted = 0;
-    numHidden = 0;
+    numLocked = 0;
     numSelected = 0;
     entity: Entity;
     changedCounter = 0;
@@ -76,25 +75,26 @@ class Splat extends Element {
     _whitePoint = 1;
     _transparency = 1;
 
+    measurePoints: Vec3[] = [];
+    measureSelection = -1;
+
     rebuildMaterial: (bands: number) => void;
 
-    constructor(asset: Asset) {
+    constructor(asset: Asset, orientation: Vec3) {
         super(ElementType.splat);
 
         const splatResource = asset.resource as GSplatResource;
-        const splatData = splatResource.splatData;
-
-        // get material options object for a shader that renders with the given number of bands
-        const materialOptions = {
-            vertex: vertexShader,
-            fragment: fragmentShader
-        };
+        const splatData = splatResource.gsplatData;
+        const { device } = splatResource;
 
         this._name = (asset.file as any).filename;
         this.asset = asset;
         this.splatData = splatData as GSplatData;
         this.numSplats = splatData.numSplats;
-        this.entity = splatResource.instantiate(materialOptions);
+
+        this.entity = new Entity('splatEntitiy');
+        this.entity.setEulerAngles(orientation);
+        this.entity.addComponent('gsplat', { asset });
 
         const instance = this.entity.gsplat.instance;
 
@@ -119,7 +119,7 @@ class Splat extends Element {
         // added per-splat state channel
         // bit 1: selected
         // bit 2: deleted
-        // bit 3: hidden
+        // bit 3: locked
         if (!this.splatData.getProp('state')) {
             this.splatData.getElement('vertex').properties.push({
                 type: 'uchar',
@@ -137,11 +137,11 @@ class Splat extends Element {
             byteSize: 2
         });
 
-        const { width, height } = (instance.splat as GSplat).colorTexture;
+        const { width, height } = splatResource.colorTexture;
 
         // pack spherical harmonic data
         const createTexture = (name: string, format: number) => {
-            return new Texture(splatResource.app.graphicsDevice, {
+            return new Texture(device, {
                 name: name,
                 width: width,
                 height: height,
@@ -159,24 +159,27 @@ class Splat extends Element {
         this.transformTexture = createTexture('splatTransform', PIXELFORMAT_R16U);
 
         // create the transform palette
-        this.transformPalette = new TransformPalette(splatResource.app.graphicsDevice);
+        this.transformPalette = new TransformPalette(device);
 
         // blend mode for splats
         const blendState = new BlendState(true, BLENDEQUATION_ADD, BLENDMODE_ONE, BLENDMODE_ONE_MINUS_SRC_ALPHA);
 
         this.rebuildMaterial = (bands: number) => {
-            instance.createMaterial(materialOptions);
             const { material } = instance;
-            material.chunks = { gsplatCenterVS: gsplatCenter };
-            material.blendState = blendState;
-            material.setDefine('SH_BANDS', `${Math.min(bands, (instance.splat as GSplat).shBands)}`);
+            // material.blendState = blendState;
+            const { glsl } = material.shaderChunks;
+            glsl.set('gsplatVS', vertexShader);
+            glsl.set('gsplatPS', fragmentShader);
+            glsl.set('gsplatCenterVS', gsplatCenter);
+
+            material.setDefine('SH_BANDS', `${Math.min(bands, (instance.resource as GSplatResource).shBands)}`);
             material.setParameter('splatState', this.stateTexture);
             material.setParameter('splatTransform', this.transformTexture);
             material.update();
         };
 
         this.selectionBoundStorage = new BoundingBox();
-        this.localBoundStorage = instance.splat.aabb;
+        this.localBoundStorage = instance.resource.aabb;
         // @ts-ignore
         this.worldBoundStorage = instance.meshInstance._aabb;
 
@@ -205,22 +208,22 @@ class Splat extends Element {
         this.stateTexture.unlock();
 
         let numSelected = 0;
-        let numHidden = 0;
+        let numLocked = 0;
         let numDeleted = 0;
 
         for (let i = 0; i < state.length; ++i) {
             const s = state[i];
             if (s & State.deleted) {
                 numDeleted++;
-            } else if (s & State.hidden) {
-                numHidden++;
+            } else if (s & State.locked) {
+                numLocked++;
             } else if (s & State.selected) {
                 numSelected++;
             }
         }
 
         this.numSplats = state.length - numDeleted;
-        this.numHidden = numHidden;
+        this.numLocked = numLocked;
         this.numSelected = numSelected;
         this.numDeleted = numDeleted;
 
@@ -398,13 +401,6 @@ class Splat extends Element {
         }
 
         this.entity.enabled = this.visible;
-
-        // Temp hack: override the splat viewport size because we're rendering to an offscreen
-        // render target and the engine currently always takes the backbuffer size.
-        // this workaround can be removed once https://github.com/playcanvas/engine/pull/7425 is
-        // available
-        const rt = this.scene.camera.entity.camera.renderTarget;
-        this.entity.gsplat.instance.meshInstance.setParameter('viewport', [rt.width, rt.height]);
     }
 
     focalPoint() {

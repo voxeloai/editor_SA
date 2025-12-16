@@ -35,7 +35,7 @@ const registerCameraPosesEvents = (events: Events) => {
 
         if (orderedPoses.length > 1) {
             // interpolate camera positions and camera target positions
-            const spline = CubicSpline.fromPointsLooping(duration, times, points, -1);
+            const spline = CubicSpline.fromPointsLooping(duration, times, points, events.invoke('timeline.smoothness'));
             const result: number[] = [];
             const pose = { position: new Vec3(), target: new Vec3() };
 
@@ -64,6 +64,18 @@ const registerCameraPosesEvents = (events: Events) => {
         onTimelineChange?.(frame);
     });
 
+    events.on('timeline.frames', () => {
+        rebuildSpline();
+        events.fire('timeline.time', events.invoke('timeline.frame'));
+    });
+
+    events.on('timeline.smoothness', () => {
+        rebuildSpline();
+        events.fire('timeline.time', events.invoke('timeline.frame'));
+    });
+
+    // poses
+
     const addPose = (pose: Pose) => {
         if (pose.frame === undefined) {
             return false;
@@ -89,6 +101,19 @@ const registerCameraPosesEvents = (events: Events) => {
         events.fire('timeline.removeKey', index);
     };
 
+    const movePose = (index: number, frame: number) => {
+        // remove target frame pose
+        const toIndex = poses.findIndex(p => p.frame === frame);
+        // move pose
+        poses[index].frame = frame;
+        if (toIndex !== -1) {
+            removePose(toIndex);
+        }
+
+        rebuildSpline();
+        events.fire('timeline.setKey', index, frame);
+    };
+
     events.function('camera.poses', () => {
         return poses;
     });
@@ -109,12 +134,32 @@ const registerCameraPosesEvents = (events: Events) => {
         });
     });
 
+    events.on('timeline.move', (frameFrom: number, frameTo: number) => {
+        if (frameFrom === frameTo) return;
+
+        const index = poses.findIndex(p => p.frame === frameFrom);
+        if (index !== -1) {
+            movePose(index, frameTo);
+        }
+    });
+
     events.on('timeline.remove', (index: number) => {
         removePose(index);
     });
 
     events.on('timeline.frames', () => {
         rebuildSpline();
+    });
+
+    events.on('scene.clear', () => {
+        // remove all timeline keys in reverse order to maintain correct indices
+        while (poses.length > 0) {
+            removePose(poses.length - 1);
+        }
+        onTimelineChange = null;
+
+        // reset timeline to frame 0
+        events.fire('timeline.setFrame', 0);
     });
 
     // doc

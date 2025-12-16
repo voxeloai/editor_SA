@@ -48,19 +48,19 @@ void main(void) {
         }
     #elif PICK_PASS
         if (pickMode == 0u) {
-            // add: skip deleted, hidden and selected splats
+            // add: skip deleted, locked and selected splats
             if (vertexState != 0u) {
                 gl_Position = discardVec;
                 return;
             }
         } else if (pickMode == 1u) {
-            // remove: skip deleted, hidden and unselected splats
+            // remove: skip deleted, locked and unselected splats
             if (vertexState != 1u) {
                 gl_Position = discardVec;
                 return;
             }
         } else {
-            // set: skip deleted and hidden splats
+            // set: skip deleted and locked splats
             if ((vertexState & 6u) != 0u) {
                 gl_Position = discardVec;
                 return;
@@ -97,8 +97,8 @@ void main(void) {
         color = readColor(source);
         color.xyz = mix(color.xyz, selectedClr.xyz * 0.2, selectedClr.a) * selectedClr.a;
     #elif PICK_PASS
-        uvec3 bits = (uvec3(source.id) >> uvec3(0u, 8u, 16u)) & uvec3(255u);
-        color = vec4(vec3(bits) / 255.0, readColor(source).a);
+        uvec4 bits = (uvec4(source.id) >> uvec4(0u, 8u, 16u, 24u)) & uvec4(255u);
+        color = vec4(bits) / 255.0;
     // handle splat color
     #elif FORWARD_PASS
         // read color
@@ -106,8 +106,16 @@ void main(void) {
 
         // evaluate spherical harmonics
         #if SH_BANDS > 0
+        // calculate the model-space view direction
             vec3 dir = normalize(center.view * mat3(center.modelView));
-            color.xyz += evalSH(source, dir);
+
+            // read sh coefficients
+            vec3 sh[SH_COEFFS];
+            float scale;
+            readSHData(source, sh, scale);
+
+            // evaluate
+            color.xyz += evalSH(sh, dir) * scale;
         #endif
 
         // apply tint/brightness
@@ -130,7 +138,6 @@ void main(void) {
             // selected
             color.xyz = mix(color.xyz, selectedClr.xyz * 0.8, selectedClr.a);
         }
-    
     #endif
 }
 `;
@@ -143,6 +150,13 @@ uniform int mode;               // 0: centers, 1: rings
 uniform float pickerAlpha;
 uniform float ringSize;
 
+const float EXP4 = exp(-4.0);
+const float INV_EXP4 = 1.0 / (1.0 - EXP4);
+
+float normExp(float x) {
+    return (exp(x * -4.0) - EXP4) * INV_EXP4;
+}
+
 void main(void) {
     mediump float A = dot(texCoordIsLocked.xy, texCoordIsLocked.xy);
 
@@ -153,14 +167,11 @@ void main(void) {
     #if OUTLINE_PASS
         gl_FragColor = vec4(1.0, 1.0, 1.0, mode == 0 ? exp(-A * 4.0) * color.a : 1.0);
     #else
-        mediump float alpha = exp(-A * 4.0) * color.a;
-
         #ifdef PICK_PASS
-            if (alpha < pickerAlpha) {
-                discard;
-            }
-            gl_FragColor = vec4(color.xyz, 0.0);
+            gl_FragColor = color;
         #else
+            mediump float alpha = normExp(A) * color.a;
+
             if (texCoordIsLocked.z == 0.0 && ringSize > 0.0) {
                 // rings mode
                 if (A < 1.0 - ringSize) {

@@ -1,5 +1,5 @@
-import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
-import { path } from 'playcanvas';
+import { BufferTarget, EncodedPacket, EncodedVideoPacketSource, MkvOutputFormat, MovOutputFormat, Mp4OutputFormat, Output, StreamTarget, WebMOutputFormat } from 'mediabunny';
+import { path, Vec3 } from 'playcanvas';
 
 import { ElementType } from './element';
 import { Events } from './events';
@@ -24,6 +24,8 @@ type VideoSettings = {
     bitrate: number;
     transparentBg: boolean;
     showDebug: boolean;
+    format: 'mp4' | 'webm' | 'mov' | 'mkv';
+    codec: 'h264' | 'h265' | 'vp9' | 'av1';
 };
 
 const removeExtension = (filename: string) => {
@@ -31,7 +33,7 @@ const removeExtension = (filename: string) => {
 };
 
 const downloadFile = (arrayBuffer: ArrayBuffer, filename: string) => {
-    const blob = new Blob([arrayBuffer], { type: 'octet/stream' });
+    const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
     const url = window.URL.createObjectURL(blob);
     const el = document.createElement('a');
     el.download = filename;
@@ -57,6 +59,47 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
         });
     };
 
+    events.function('render.offscreen', async (width: number, height: number): Promise<Uint8Array> => {
+        try {
+            // start rendering to offscreen buffer only
+            scene.camera.startOffscreenMode(width, height);
+            scene.camera.renderOverlays = false;
+            scene.gizmoLayer.enabled = false;
+
+            // render the next frame
+            scene.forceRender = true;
+
+            // for render to finish
+            await postRender();
+
+            // cpu-side buffer to read pixels into
+            const data = new Uint8Array(width * height * 4);
+
+            const { renderTarget } = scene.camera.entity.camera;
+            const { workRenderTarget } = scene.camera;
+
+            scene.dataProcessor.copyRt(renderTarget, workRenderTarget);
+
+            // read the rendered frame
+            await workRenderTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workRenderTarget, data });
+
+            // flip y positions to have 0,0 at the top
+            let line = new Uint8Array(width * 4);
+            for (let y = 0; y < height / 2; y++) {
+                line = data.slice(y * width * 4, (y + 1) * width * 4);
+                data.copyWithin(y * width * 4, (height - y - 1) * width * 4, (height - y) * width * 4);
+                data.set(line, (height - y - 1) * width * 4);
+            }
+
+            return data;
+        } finally {
+            scene.camera.endOffscreenMode();
+            scene.camera.renderOverlays = true;
+            scene.gizmoLayer.enabled = true;
+            scene.camera.entity.camera.clearColor.set(0, 0, 0, 0);
+        }
+    });
+
     events.function('render.image', async (imageSettings: ImageSettings) => {
         events.fire('startSpinner');
 
@@ -67,6 +110,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             // start rendering to offscreen buffer only
             scene.camera.startOffscreenMode(width, height);
             scene.camera.renderOverlays = showDebug;
+            scene.gizmoLayer.enabled = false;
             if (!transparentBg) {
                 scene.camera.entity.camera.clearColor.copy(bgClr);
             }
@@ -81,10 +125,12 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             const data = new Uint8Array(width * height * 4);
 
             const { renderTarget } = scene.camera.entity.camera;
-            const { colorBuffer } = renderTarget;
+            const { workRenderTarget } = scene.camera;
+
+            scene.dataProcessor.copyRt(renderTarget, workRenderTarget);
 
             // read the rendered frame
-            await colorBuffer.read(0, 0, width, height, { renderTarget, data });
+            await workRenderTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workRenderTarget, data });
 
             // the render buffer contains premultiplied alpha. so apply background color.
             if (!transparentBg) {
@@ -108,8 +154,8 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
             const arrayBuffer = await compressor.compress(
                 new Uint32Array(data.buffer),
-                colorBuffer.width,
-                colorBuffer.height
+                width,
+                height
             );
 
             // construct filename
@@ -129,32 +175,81 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
         } finally {
             scene.camera.endOffscreenMode();
             scene.camera.renderOverlays = true;
+            scene.gizmoLayer.enabled = true;
             scene.camera.entity.camera.clearColor.set(0, 0, 0, 0);
 
             events.fire('stopSpinner');
         }
     });
 
-    events.function('render.video', async (videoSettings: VideoSettings) => {
-        events.fire('startSpinner');
+    events.function('render.video', async (videoSettings: VideoSettings, fileStream: FileSystemWritableFileStream) => {
+        events.fire('progressStart', localize('panel.render.render-video'));
 
         try {
-            const { startFrame, endFrame, frameRate, width, height, bitrate, transparentBg, showDebug } = videoSettings;
+            const { startFrame, endFrame, frameRate, width, height, bitrate, transparentBg, showDebug, format, codec: codecChoice } = videoSettings;
 
-            const muxer = new Muxer({
-                target: new ArrayBufferTarget(),
-                video: {
-                    codec: 'avc',
-                    width,
-                    height
-                },
-                fastStart: 'in-memory',
-                firstTimestampBehavior: 'offset'
+            const target = fileStream ? new StreamTarget(fileStream) : new BufferTarget();
+
+            // Configure output format based on container selection
+            let outputFormat: Mp4OutputFormat | MovOutputFormat | MkvOutputFormat | WebMOutputFormat;
+            let fileExtension: string;
+
+            if (format === 'webm') {
+                outputFormat = new WebMOutputFormat();
+                fileExtension = 'webm';
+            } else if (format === 'mov') {
+                outputFormat = new MovOutputFormat({
+                    fastStart: 'in-memory'
+                });
+                fileExtension = 'mov';
+            } else if (format === 'mkv') {
+                outputFormat = new MkvOutputFormat();
+                fileExtension = 'mkv';
+            } else {
+                outputFormat = new Mp4OutputFormat({
+                    fastStart: 'in-memory'
+                });
+                fileExtension = 'mp4';
+            }
+
+            // Configure codec based on codec selection
+            let codecType: 'avc' | 'hevc' | 'vp9' | 'av1';
+            let codec: string;
+
+            if (codecChoice === 'h264') {
+                codecType = 'avc';
+                codec = height < 1080 ? 'avc1.420028' : 'avc1.640033'; // H.264 Constrained Baseline/High profile
+            } else if (codecChoice === 'h265') {
+                codecType = 'hevc';
+                codec = 'hev1.1.6.L120.B0'; // H.265 Main profile, Level 4.0
+            } else if (codecChoice === 'vp9') {
+                codecType = 'vp9';
+                codec = 'vp09.00.10.08'; // VP9 Profile 0, Level 1.0
+            } else if (codecChoice === 'av1') {
+                codecType = 'av1';
+                codec = 'av01.0.05M.08'; // AV1 Main Profile, Level 3.1
+            } else {
+                codecType = 'avc';
+                codec = height < 1080 ? 'avc1.420028' : 'avc1.640033'; // Default: H.264 Constrained Baseline/High
+            }
+
+            const output = new Output({
+                format: outputFormat,
+                target
             });
 
+            const videoSource = new EncodedVideoPacketSource(codecType);
+            output.addVideoTrack(videoSource, {
+                rotation: 0,
+                frameRate
+            });
+
+            await output.start();
+
             const encoder = new VideoEncoder({
-                output: (chunk, meta) => {
-                    muxer.addVideoChunk(chunk, meta);
+                output: async (chunk, meta) => {
+                    const encodedPacket = EncodedPacket.fromEncodedChunk(chunk);
+                    await videoSource.add(encodedPacket, meta);
                 },
                 error: (error) => {
                     console.log(error);
@@ -162,7 +257,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             });
 
             encoder.configure({
-                codec: height < 1080 ? 'avc1.420028' : 'avc1.640033', // H.264 profile low : high
+                codec,
                 width,
                 height,
                 bitrate
@@ -171,6 +266,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             // start rendering to offscreen buffer only
             scene.camera.startOffscreenMode(width, height);
             scene.camera.renderOverlays = showDebug;
+            scene.gizmoLayer.enabled = false;
             if (!transparentBg) {
                 scene.camera.entity.camera.clearColor.copy(events.invoke('bgClr'));
             }
@@ -183,12 +279,27 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             // get the list of visible splats
             const splats = (scene.getElementsByType(ElementType.splat) as Splat[]).filter(splat => splat.visible);
 
+            // remember last camera position so we can skip sorting if the camera didn't move
+            const last_pos = new Vec3(0, 0, 0);
+            const last_forward = new Vec3(1, 0, 0);
+
             // prepare the frame for rendering
             const prepareFrame = async (frameTime: number) => {
                 events.fire('timeline.time', frameTime);
 
                 // manually update the camera so position and rotation are correct
                 scene.camera.onUpdate(0);
+
+                // if the camera didn't move, don't sort
+                const pos = scene.camera.entity.getPosition();
+                const forward = scene.camera.entity.forward;
+                if (last_pos.equals(pos) && last_forward.equals(forward)) {
+                    return;
+                }
+
+                // update remembered position
+                last_pos.copy(pos);
+                last_forward.copy(forward);
 
                 // wait for sorting to complete
                 await Promise.all(splats.map((splat) => {
@@ -219,10 +330,12 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             // capture the current video frame
             const captureFrame = async (frameTime: number) => {
                 const { renderTarget } = scene.camera.entity.camera;
-                const { colorBuffer } = renderTarget;
+                const { workRenderTarget } = scene.camera;
+
+                scene.dataProcessor.copyRt(renderTarget, workRenderTarget);
 
                 // read the rendered frame
-                await colorBuffer.read(0, 0, width, height, { renderTarget, data });
+                await workRenderTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workRenderTarget, data });
 
                 // flip the buffer vertically
                 for (let y = 0; y < height / 2; y++) {
@@ -260,17 +373,24 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
                 // wait for capture
                 await captureFrame(frameTime);
+
+                events.fire('progressUpdate', {
+                    text: localize('panel.render.rendering', { ellipsis: true }),
+                    progress: 100 * frameTime / duration
+                });
             }
 
-            // Flush and finalize muxer
+            // Flush and finalize output
             await encoder.flush();
-            muxer.finalize();
-
-            // Download
-            downloadFile(muxer.target.buffer, `${removeExtension(splats[0]?.name ?? 'SuperSplat')}-video.mp4`);
+            await output.finalize();
 
             // Free resources
             encoder.close();
+
+            // Download
+            if (!fileStream) {
+                downloadFile((output.target as BufferTarget).buffer, `${removeExtension(splats[0]?.name ?? 'supersplat')}.${fileExtension}`);
+            }
 
             return true;
         } catch (error) {
@@ -282,11 +402,12 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
         } finally {
             scene.camera.endOffscreenMode();
             scene.camera.renderOverlays = true;
+            scene.gizmoLayer.enabled = true;
             scene.camera.entity.camera.clearColor.set(0, 0, 0, 0);
             scene.lockedRenderMode = false;
             scene.forceRender = true;       // camera likely moved, finish with normal render
 
-            events.fire('stopSpinner');
+            events.fire('progressEnd');
         }
     });
 };

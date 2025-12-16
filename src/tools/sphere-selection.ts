@@ -1,4 +1,4 @@
-import { Button, Container, NumericInput } from 'pcui';
+import { Button, Container, NumericInput } from '@playcanvas/pcui';
 import { TranslateGizmo, Vec3 } from 'playcanvas';
 
 import { Events } from '../events';
@@ -27,7 +27,7 @@ class SphereSelection {
 
         // ui
         const selectToolbar = new Container({
-            id: 'select-toolbar',
+            class: 'select-toolbar',
             hidden: true
         });
 

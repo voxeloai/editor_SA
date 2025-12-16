@@ -1,6 +1,7 @@
-import { Button, Container, NumericInput, SelectInput } from 'pcui';
+import { Button, Container, NumericInput, SelectInput } from '@playcanvas/pcui';
 
 import { Events } from '../events';
+import { localize } from './localization';
 import { Tooltips } from './tooltips';
 
 class Ticks extends Container {
@@ -62,6 +63,40 @@ class Ticks extends Container {
                 const label = document.createElement('div');
                 label.classList.add('time-label', 'key');
                 label.style.left = `${offsetFromFrame(value)}px`;
+                let dragging = false;
+                let toFrame = -1;
+
+                label.addEventListener('pointerdown', (event) => {
+                    if (!dragging && event.isPrimary) {
+                        dragging = true;
+                        label.classList.add('dragging');
+                        label.setPointerCapture(event.pointerId);
+                        event.stopPropagation();
+                    }
+                });
+
+                label.addEventListener('pointermove', (event: PointerEvent) => {
+                    if (dragging) {
+                        toFrame = frameFromOffset(parseInt(label.style.left, 10) + event.offsetX);
+                        label.style.left = `${offsetFromFrame(toFrame)}px`;
+                    }
+                });
+
+                label.addEventListener('pointerup', (event: PointerEvent) => {
+                    if (dragging && event.isPrimary) {
+                        const fromIndex = keys.indexOf(label);
+                        const fromFrame = events.invoke('timeline.keys')[fromIndex];
+                        if (fromFrame !== toFrame) {
+                            events.fire('timeline.move', fromFrame, toFrame);
+                            events.fire('timeline.frame', events.invoke('timeline.frame'));
+                        }
+
+                        label.releasePointerCapture(event.pointerId);
+                        label.classList.remove('dragging');
+                        dragging = false;
+                    }
+                });
+
                 workArea.dom.appendChild(label);
                 keys.push(label);
             };
@@ -225,11 +260,30 @@ class TimelinePanel extends Container {
             frames.value = framesIn;
         });
 
+        // smoothness
+
+        const smoothness = new NumericInput({
+            id: 'smoothness',
+            min: 0,
+            max: 1,
+            step: 0.05,
+            value: 1
+        });
+
+        smoothness.on('change', (value: number) => {
+            events.fire('timeline.setSmoothness', value);
+        });
+
+        events.on('timeline.smoothness', (smoothnessIn: number) => {
+            smoothness.value = smoothnessIn;
+        });
+
         const settingsControls = new Container({
             id: 'settings-controls'
         });
         settingsControls.append(speed);
         settingsControls.append(frames);
+        settingsControls.append(smoothness);
 
         // append control groups
 
@@ -308,6 +362,7 @@ class TimelinePanel extends Container {
             const index = events.invoke('timeline.keys').indexOf(events.invoke('timeline.frame'));
             if (index !== -1) {
                 events.fire('timeline.remove', index);
+                events.fire('timeline.frame', events.invoke('timeline.frame'));
             }
         });
 
@@ -331,6 +386,16 @@ class TimelinePanel extends Container {
                 // stop
             }
         });
+
+        // tooltips
+        tooltips.register(prev, localize('tooltip.timeline.prev-key'), 'top');
+        tooltips.register(play, localize('tooltip.timeline.play'), 'top');
+        tooltips.register(next, localize('tooltip.timeline.next-key'), 'top');
+        tooltips.register(addKey, localize('tooltip.timeline.add-key'), 'top');
+        tooltips.register(removeKey, localize('tooltip.timeline.remove-key'), 'top');
+        tooltips.register(speed, localize('tooltip.timeline.frame-rate'), 'top');
+        tooltips.register(frames, localize('tooltip.timeline.total-frames'), 'top');
+        tooltips.register(smoothness, localize('tooltip.timeline.smoothness'), 'top');
     }
 }
 

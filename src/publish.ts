@@ -1,26 +1,42 @@
 import { Events } from './events';
-import { BufferWriter, GZipWriter } from './serialize/writer';
-import { serializePlyCompressed, ExperienceSettings, SerializeSettings } from './splat-serialize';
+import { Writer, GZipWriter } from './serialize/writer';
+import { serializePlyCompressed, serializePly, ExperienceSettings, SerializeSettings } from './splat-serialize';
 import { localize } from './ui/localization';
 
+type User = {
+    id: string;
+    username: string;
+    token: string;
+    apiServer: string;
+};
+
+type Scene = {
+    id: string;
+    hash: string;
+    title: string;
+    description: string;
+    format: string;
+};
+
+type UserStatus = {
+    user: User;
+    scenes: Scene[];
+};
+
 type PublishSettings = {
+    user: User;
     title: string;
     description: string;
     listed: boolean;
     serializeSettings: SerializeSettings;
     experienceSettings: ExperienceSettings;
+    overwriteId?: string;   // for republishing an existing scene
 };
 
 const origin = location.origin;
 
-type User = {
-    id: string;
-    token: string;
-    apiServer: string;
-};
-
 // check whether user is logged in
-const getUser = async () => {
+const fetchUser = async () => {
     try {
         const urlResponse = await fetch(`${origin}/api/id`);
         return urlResponse.ok && (await urlResponse.json() as User);
@@ -29,124 +45,256 @@ const getUser = async () => {
     }
 };
 
-const publish = async (data: Uint8Array, publishSettings: PublishSettings, user: User) => {
-    const filename = 'scene.ply';
-
-    // get signed url
-    const urlResponse = await fetch(`${user.apiServer}/upload/signed-url`, {
-        method: 'POST',
-        body: JSON.stringify({ filename }),
+const fetchSceneList = async (user: User) => {
+    const response = await fetch(`${user.apiServer}/splats?limit=128`, {
+        method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
             'Authorization': `Bearer ${user.token}`
         }
     });
 
-    if (!urlResponse.ok) {
-        throw new Error(`failed to get signed url (${urlResponse.statusText})`);
+    if (!response.ok) {
+        throw new Error(`failed to get scene list (${response.statusText})`);
     }
 
-    const json = await urlResponse.json();
-
-    // upload the file to S3
-    const uploadResponse = await fetch(json.signedUrl, {
-        method: 'PUT',
-        body: data,
-        headers: {
-            'Content-Type': 'binary/octet-stream'
-        }
-    });
-
-    if (!uploadResponse.ok) {
-        throw new Error('failed to upload blob');
-    }
-
-    const publishResponse = await fetch(`${user.apiServer}/splats/publish`, {
-        method: 'POST',
-        body: JSON.stringify({
-            s3Key: json.s3Key,
-            title: publishSettings.title,
-            description: publishSettings.description,
-            listed: publishSettings.listed,
-            settings: publishSettings.experienceSettings
-        }),
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${user.token}`
-        }
-    });
-
-    if (!publishResponse.ok) {
-        let msg;
-        try {
-            const err = await publishResponse.json();
-            msg = err.error ?? msg;
-        } catch (e) {
-            msg = 'Failed to publish';
-        }
-
-        throw new Error(msg);
-    }
-
-    return await publishResponse.json();
+    return (await response.json()).result as Scene[];
 };
+
+class PublishWriter implements Writer {
+    write: (data: Uint8Array) => void;
+    close: () => Promise<any>;
+
+    static async create(publishSettings: PublishSettings) {
+        const { user } = publishSettings;
+
+        const filename = 'scene.ply';
+
+        // start upload
+        const startResponse = await fetch(`${user.apiServer}/upload/start-upload`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${user.token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ fileName: filename })
+        });
+
+        const startJson = await startResponse.json();
+
+        const result = new PublishWriter();
+
+        const uploadBuf = new Uint8Array(10 * 1024 * 1024); // 10MB buffer
+        const parts: { PartNumber: number, ETag: string }[] = [];
+        let partNumber = 1;
+        let cursor = 0;
+
+        const upload = async () => {
+            if (cursor === 0) return;
+
+            // get signed url for this part
+            const urlResponse = await fetch(`${user.apiServer}/upload/signed-urls`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${user.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uploadId: startJson.uploadId,
+                    key: startJson.key,
+                    parts: 1,
+                    partBase: partNumber
+                })
+            });
+
+            if (!urlResponse.ok) {
+                throw new Error(`failed to get signed url (${urlResponse.statusText})`);
+            }
+
+            const urlJson = await urlResponse.json();
+
+            const uploadResponse = await fetch(urlJson.signedUrls[0], {
+                method: 'PUT',
+                body: uploadBuf.slice(0, cursor),
+                headers: {
+                    'Content-Type': 'application/octet-stream'
+                }
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error(`failed to upload data (${uploadResponse.statusText})`);
+            }
+
+            parts.push({
+                PartNumber: partNumber,
+                ETag: uploadResponse.headers.get('etag').replace(/^"|"$/g, '')
+            });
+
+            cursor = 0;
+            partNumber++;
+        };
+
+        result.write = async (data: Uint8Array) => {
+            let readcursor = 0;
+
+            while (data.byteLength - readcursor > 0) {
+                const readSize = data.byteLength - readcursor;
+                const writeSize = uploadBuf.byteLength - cursor;
+                const copySize = Math.min(readSize, writeSize);
+
+                uploadBuf.set(data.subarray(readcursor, readcursor + copySize), cursor);
+
+                readcursor += copySize;
+                cursor += copySize;
+
+                if (cursor === uploadBuf.byteLength) {
+                    await upload();
+                }
+            }
+        };
+
+        result.close = async () => {
+            // final upload
+            await upload();
+
+            // complete the multipart upload
+            const completeResult = await fetch(`${user.apiServer}/upload/complete-upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${user.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uploadId: startJson.uploadId,
+                    key: startJson.key,
+                    parts
+                })
+            });
+
+            if (!completeResult.ok) {
+                throw new Error(`failed to complete upload (${completeResult.statusText})`);
+            }
+
+            const completeJson = await completeResult.json();
+
+            const doPublish = () => fetch(`${user.apiServer}/splats/publish`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    s3Key: startJson.key,
+                    title: publishSettings.title,
+                    description: publishSettings.description,
+                    listed: publishSettings.listed,
+                    settings: publishSettings.experienceSettings,
+                    sourceFormat: 'ply',
+                    publishFormat: 'sog'
+                }),
+                headers: {
+                    'Authorization': `Bearer ${user.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const doRepublish = () => fetch(`${user.apiServer}/splats/${publishSettings.overwriteId}/republish`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    s3Key: startJson.key,
+                    settings: publishSettings.experienceSettings,
+                    sourceFormat: 'ply',
+                    publishFormat: 'sog'
+                }),
+                headers: {
+                    'Authorization': `Bearer ${user.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const publishResponse = await (publishSettings.overwriteId ? doRepublish() : doPublish());
+
+            if (!publishResponse.ok) {
+                let msg;
+                try {
+                    const err = await publishResponse.json();
+                    msg = err.error ?? msg;
+                } catch (e) {
+                    msg = 'Failed to publish';
+                }
+
+                throw new Error(msg);
+            }
+
+            return await publishResponse.json();
+        };
+
+        return result;
+    }
+}
 
 const registerPublishEvents = (events: Events) => {
 
-    events.function('publish.enabled', async () => {
-        return !!(await getUser());
+    events.function('publish.userStatus', async () => {
+        const user = await fetchUser();
+        if (!user || !user.username) {
+            return null;
+        }
+        const scenes = await fetchSceneList(user);
+        return { user, scenes };
     });
 
     events.function('scene.publish', async (publishSettings: PublishSettings) => {
-        const user = await getUser();
-
-        if (!user || !publishSettings) {
-            return false;
-        }
         try {
-            events.fire('startSpinner');
+            events.fire('progressStart', 'Publishing...');
+            events.fire('progressUpdate', {
+                text: localize('popup.publish.converting', { ellipsis: true }),
+                progress: 0
+            });
 
             // delay to allow spinner to show (hopefully 10ms is enough)
             await new Promise((resolve) => {
                 setTimeout(resolve, 10);
             });
 
+            const progressFunc = (loaded: number, total: number) => {
+                events.fire('progressUpdate', {
+                    text: localize('popup.publish.uploading', { ellipsis: true }),
+                    progress: 100 * loaded / total
+                });
+            };
+
+            // create the writer chain: gzip->stream->upload
+            const publishWriter = await PublishWriter.create(publishSettings);
+            const gzipWriter = new GZipWriter(publishWriter);
+
             const splats = events.invoke('scene.splats');
 
-            // serialize/compress
-            const writer = new BufferWriter();
-            const gzipWriter = new GZipWriter(writer);
-            await serializePlyCompressed(splats, publishSettings.serializeSettings, gzipWriter);
-            await gzipWriter.close();
-            const buffer = writer.close();
+            // serialize
+            await serializePly(splats, publishSettings.serializeSettings, gzipWriter, progressFunc);
 
-            // publish
-            const response = await publish(buffer, publishSettings, user);
+            await gzipWriter.close();
+            const response = await publishWriter.close();
 
             if (!response) {
                 await events.invoke('showPopup', {
                     type: 'error',
-                    header: localize('publish.failed'),
-                    message: localize('publish.please-try-again')
+                    header: localize('popup.publish.failed'),
+                    message: localize('popup.publish.please-try-again')
                 });
             } else {
                 await events.invoke('showPopup', {
                     type: 'info',
-                    header: localize('publish.succeeded'),
-                    message: localize('publish.message'),
+                    header: localize('popup.publish.succeeded'),
+                    message: localize('popup.publish.message'),
                     link: response.url
                 });
             }
         } catch (error) {
             await events.invoke('showPopup', {
                 type: 'error',
-                header: localize('publish.failed'),
+                header: localize('popup.publish.failed'),
                 message: `'${error.message ?? error}'`
             });
         } finally {
-            events.fire('stopSpinner');
+            events.fire('progressEnd');
         }
     });
 };
 
-export { PublishSettings, registerPublishEvents };
+export { PublishSettings, UserStatus, registerPublishEvents };

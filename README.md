@@ -22,7 +22,6 @@ To initialize a local development environment for Voxelo.ai editor, ensure you h
 2. Install dependencies:
 
    ```sh
-   git submodule update --init
    npm install
    ```
 

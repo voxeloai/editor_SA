@@ -69,7 +69,7 @@ class SplatsTransformHandler implements TransformHandler {
     placePivot() {
         const origin = this.events.invoke('pivot.origin');
         this.splat.getPivot(origin === 'center' ? 'center' : 'boundCenter', true, transform);
-        this.events.fire('pivot.place', transform);
+        this.events.invoke('pivot').place(transform);
     }
 
     activate() {
@@ -170,7 +170,6 @@ class SplatsTransformHandler implements TransformHandler {
             transform: transform.clone(),
             paletteMap: new Map(paletteMap)
         });
-
 
         // create op for pivot placement
         const pivot = this.events.invoke('pivot') as Pivot;

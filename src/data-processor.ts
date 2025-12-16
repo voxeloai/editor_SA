@@ -3,15 +3,15 @@ import {
     PIXELFORMAT_RGBA8,
     PIXELFORMAT_RGBA32F,
     SEMANTIC_POSITION,
-    createShaderFromCode,
     drawQuadWithShader,
     BoundingBox,
     GraphicsDevice,
-    GSplat,
+    GSplatResource,
     Mat4,
     RenderTarget,
     ScopeSpace,
     Shader,
+    ShaderUtils,
     Texture,
     Vec3,
     WebglGraphicsDevice,
@@ -79,6 +79,7 @@ class DataProcessor {
     dummyTexture: Texture;
     viewProjectionMat = new Mat4();
     splatParams = new Int32Array(3);
+    copyShader: Shader;
 
     getIntersectResources: (width: number, numSplats: number) => IntersectResources;
     getBoundResources: (splatTextureWidth: number) => BoundResources;
@@ -104,6 +105,26 @@ class DataProcessor {
             });
         };
 
+        this.copyShader = ShaderUtils.createShader(device, {
+            uniqueName: 'copyShader',
+            attributes: {
+                vertex_position: SEMANTIC_POSITION
+            },
+            vertexGLSL: `
+                attribute vec2 vertex_position;
+                void main(void) {
+                    gl_Position = vec4(vertex_position, 0.0, 1.0);
+                }
+            `,
+            fragmentGLSL: `
+                uniform sampler2D colorTex;
+                void main(void) {
+                    ivec2 texel = ivec2(gl_FragCoord.xy);
+                    gl_FragColor = texelFetch(colorTex, texel, 0);
+                }
+            `
+        });
+
         // intersection test
 
         this.getIntersectResources = (() => {
@@ -114,8 +135,13 @@ class DataProcessor {
 
             return (width: number, numSplats: number) => {
                 if (!shader) {
-                    shader = createShaderFromCode(device, intersectionVS, intersectionFS, 'intersectByMaskShader', {
-                        vertex_position: SEMANTIC_POSITION
+                    shader = ShaderUtils.createShader(device, {
+                        uniqueName: 'intersectByMaskShader',
+                        attributes: {
+                            vertex_position: SEMANTIC_POSITION
+                        },
+                        vertexGLSL: intersectionVS,
+                        fragmentGLSL: intersectionFS
                     });
                 }
 
@@ -155,8 +181,13 @@ class DataProcessor {
 
             return (width: number) => {
                 if (!shader) {
-                    shader = createShaderFromCode(device, boundVS, boundFS, 'calcBoundShader', {
-                        vertex_position: SEMANTIC_POSITION
+                    shader = ShaderUtils.createShader(device, {
+                        uniqueName: 'calcBoundShader',
+                        attributes: {
+                            vertex_position: SEMANTIC_POSITION
+                        },
+                        vertexGLSL: boundVS,
+                        fragmentGLSL: boundFS
                     });
                 }
 
@@ -205,8 +236,13 @@ class DataProcessor {
 
             return (width: number, height: number, numSplats: number) => {
                 if (!shader) {
-                    shader = createShaderFromCode(device, positionVS, positionFS, 'calcPositionShader', {
-                        vertex_position: SEMANTIC_POSITION
+                    shader = ShaderUtils.createShader(device, {
+                        uniqueName: 'calcPositionShader',
+                        attributes: {
+                            vertex_position: SEMANTIC_POSITION
+                        },
+                        vertexGLSL: positionVS,
+                        fragmentGLSL: positionFS
                     });
                 }
 
@@ -235,7 +271,7 @@ class DataProcessor {
         const { scope } = device;
 
         const numSplats = splat.splatData.numSplats;
-        const transformA = (splat.entity.gsplat.instance.splat as GSplat).transformATexture;
+        const transformA = (splat.entity.gsplat.instance.resource as GSplatResource).transformATexture;
         const splatTransform = splat.transformTexture;
         const transformPalette = splat.transformPalette.texture;
 
@@ -345,7 +381,7 @@ class DataProcessor {
         const { scope } = device;
 
         const numSplats = splat.splatData.numSplats;
-        const transformA = (splat.entity.gsplat.instance.splat as GSplat).transformATexture;
+        const transformA = (splat.entity.gsplat.instance.resource as GSplatResource).transformATexture;
         const splatTransform = splat.transformTexture;
         const transformPalette = splat.transformPalette.texture;
         const splatState = splat.stateTexture;
@@ -407,7 +443,7 @@ class DataProcessor {
         const { scope } = device;
 
         const numSplats = splat.splatData.numSplats;
-        const transformA = (splat.entity.gsplat.instance.splat as GSplat).transformATexture;
+        const transformA = (splat.entity.gsplat.instance.resource as GSplatResource).transformATexture;
         const splatTransform = splat.transformTexture;
         const transformPalette = splat.transformPalette.texture;
 
@@ -435,6 +471,17 @@ class DataProcessor {
         );
 
         return resources.data;
+    }
+
+    copyRt(source: RenderTarget, dest: RenderTarget) {
+        const { device } = this;
+
+        resolve(device.scope, {
+            colorTex: source.colorBuffer
+        });
+
+        device.setBlendState(BlendState.NOBLEND);
+        drawQuadWithShader(device, dest, this.copyShader);
     }
 }
 

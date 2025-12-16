@@ -6,6 +6,7 @@ import { EditHistory } from './edit-history';
 import { registerEditorEvents } from './editor';
 import { Events } from './events';
 import { initFileHandler } from './file-handler';
+import { registerIframeApi } from './iframe-api';
 import { registerPlySequenceEvents } from './ply-sequence';
 import { registerPublishEvents } from './publish';
 import { registerRenderEvents } from './render';
@@ -16,7 +17,10 @@ import { Shortcuts } from './shortcuts';
 import { registerTimelineEvents } from './timeline';
 import { BoxSelection } from './tools/box-selection';
 import { BrushSelection } from './tools/brush-selection';
+import { EyedropperSelection } from './tools/eyedropper-selection';
+import { FloodSelection } from './tools/flood-selection';
 import { LassoSelection } from './tools/lasso-selection';
+import { MeasureTool } from './tools/measure-tool';
 import { MoveTool } from './tools/move-tool';
 import { PolygonSelection } from './tools/polygon-selection';
 import { RectSelection } from './tools/rect-selection';
@@ -26,6 +30,7 @@ import { SphereSelection } from './tools/sphere-selection';
 import { ToolManager } from './tools/tool-manager';
 import { registerTransformHandlerEvents } from './transform-handler';
 import { EditorUI } from './ui/editor';
+import { localizeInit } from './ui/localization';
 
 declare global {
     interface LaunchParams {
@@ -82,6 +87,8 @@ const initShortcuts = (events: Events) => {
     shortcuts.register(['P', 'p'], { event: 'tool.polygonSelection', sticky: true });
     shortcuts.register(['L', 'l'], { event: 'tool.lassoSelection', sticky: true });
     shortcuts.register(['B', 'b'], { event: 'tool.brushSelection', sticky: true });
+    shortcuts.register(['O', 'o'], { event: 'tool.floodSelection', sticky: true });
+    shortcuts.register(['E', 'e'], { event: 'tool.eyedropperSelection', sticky: true });
     shortcuts.register(['A', 'a'], { event: 'select.all', ctrl: true });
     shortcuts.register(['A', 'a'], { event: 'select.none', shift: true });
     shortcuts.register(['I', 'i'], { event: 'select.invert', ctrl: true });
@@ -105,17 +112,14 @@ const main = async () => {
     // url
     const url = new URL(window.location.href);
 
-    // decode remote storage details
-    let remoteStorageDetails;
-    try {
-        remoteStorageDetails = JSON.parse(decodeURIComponent(url.searchParams.get('remoteStorage')));
-    } catch (e) { }
-
     // edit history
     const editHistory = new EditHistory(events);
 
+    // init localization
+    await localizeInit();
+
     // editor ui
-    const editorUI = new EditorUI(events, !!remoteStorageDetails);
+    const editorUI = new EditorUI(events);
 
     // create the graphics device
     const graphicsDevice = await createGraphicsDevice(editorUI.canvas, {
@@ -232,13 +236,16 @@ const main = async () => {
     const toolManager = new ToolManager(events);
     toolManager.register('rectSelection', new RectSelection(events, editorUI.toolsContainer.dom));
     toolManager.register('brushSelection', new BrushSelection(events, editorUI.toolsContainer.dom, mask));
+    toolManager.register('floodSelection', new FloodSelection(events, editorUI.toolsContainer.dom, mask, editorUI.canvasContainer));
     toolManager.register('polygonSelection', new PolygonSelection(events, editorUI.toolsContainer.dom, mask));
     toolManager.register('lassoSelection', new LassoSelection(events, editorUI.toolsContainer.dom, mask));
     toolManager.register('sphereSelection', new SphereSelection(events, scene, editorUI.canvasContainer));
     toolManager.register('boxSelection', new BoxSelection(events, scene, editorUI.canvasContainer));
+    toolManager.register('eyedropperSelection', new EyedropperSelection(events, editorUI.toolsContainer.dom, editorUI.canvasContainer));
     toolManager.register('move', new MoveTool(events, scene));
     toolManager.register('rotate', new RotateTool(events, scene));
     toolManager.register('scale', new ScaleTool(events, scene));
+    toolManager.register('measure', new MeasureTool(events, scene, editorUI.toolsContainer.dom, editorUI.canvasContainer));
 
     editorUI.toolsContainer.dom.appendChild(maskCanvas);
 
@@ -253,8 +260,9 @@ const main = async () => {
     registerPublishEvents(events);
     registerDocEvents(scene, events);
     registerRenderEvents(scene, events);
+    registerIframeApi(events);
     initShortcuts(events);
-    initFileHandler(scene, events, editorUI.appContainer.dom, remoteStorageDetails);
+    initFileHandler(scene, events, editorUI.appContainer.dom);
 
     // load async models
     scene.start();
@@ -262,17 +270,21 @@ const main = async () => {
     // handle load params
     const loadList = url.searchParams.getAll('load');
     for (const value of loadList) {
-        await events.invoke('import', decodeURIComponent(value));
+        const decoded = decodeURIComponent(value);
+        await events.invoke('import', [{
+            filename: decoded.split('/').pop(),
+            url: decoded
+        }]);
     }
 
     // handle OS-based file association in PWA mode
     if ('launchQueue' in window) {
         window.launchQueue.setConsumer(async (launchParams: LaunchParams) => {
             for (const file of launchParams.files) {
-                const blob = await file.getFile();
-                const url = URL.createObjectURL(blob);
-                await events.invoke('import', url, file.name);
-                URL.revokeObjectURL(url);
+                await events.invoke('import', [{
+                    filename: file.name,
+                    contents: await file.getFile()
+                }]);
             }
         });
     }
