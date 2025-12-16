@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320.13 367.49">
+    <defs>
+        <style>
+            .cls-1{stroke:#c6c6c6;stroke-width:8px;}.cls-1,.cls-2,.cls-3,.cls-4,.cls-5,.cls-6,.cls-7,.cls-8,.cls-9{fill:none;}.cls-1,.cls-2,.cls-3,.cls-4,.cls-5,.cls-7,.cls-8,.cls-9{stroke-linejoin:round;}.cls-2{stroke:#a6a6a6;stroke-width:6px;}.cls-3{stroke:#d6d6d6;stroke-width:9px;}.cls-4{stroke:#b6b6b6;stroke-width:7px;}.cls-5{stroke:#868686;stroke-width:4px;}.cls-6{stroke:#666;stroke-miterlimit:10;stroke-width:2px;}.cls-7{stroke:#767676;stroke-width:3px;}.cls-8{stroke:#e6e6e6;stroke-width:10px;}.cls-9{stroke:#969696;stroke-width:5px;}
+        </style>
+    </defs>
+    <g id="Layer_1-2">
+        <polygon class="cls-6"
+                 points="162.48 182.12 162.75 1.73 318.84 91.52 319.12 271.59 162.48 182.12 162.48 182.12"/>
+        <polygon class="cls-7"
+                 points="142.79 170.81 143.03 12.97 299.12 102.84 299.48 282.95 142.83 193.4 142.79 170.81"/>
+        <polygon class="cls-5"
+                 points="123.11 159.51 123.31 24.21 279.4 114.16 279.83 294.32 123.18 204.69 123.11 159.51"/>
+        <polygon class="cls-9"
+                 points="103.42 148.2 103.59 35.45 259.68 125.49 260.18 305.68 103.53 215.97 103.42 148.2"/>
+        <polygon class="cls-2" points="83.74 136.89 83.88 46.7 239.97 136.81 240.53 317.04 83.88 227.25 83.74 136.89"/>
+        <polygon class="cls-4" points="64.05 125.59 64.16 57.94 220.25 148.13 220.88 328.4 64.23 238.53 64.05 125.59"/>
+        <polygon class="cls-1" points="44.37 114.28 44.44 69.18 200.53 159.45 201.23 339.76 44.58 249.81 44.37 114.28"/>
+        <polygon class="cls-3" points="24.68 102.97 24.72 80.42 180.81 170.77 181.58 351.13 24.93 261.1 24.68 102.97"/>
+        <polygon class="cls-8" points="5 91.67 5.28 272.38 161.93 362.49 161.09 182.1 5 91.67 5 91.67"/>
+    </g>
+</svg>
