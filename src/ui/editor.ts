@@ -9,7 +9,7 @@ import { ExportPopup } from './export-popup';
 import { ImageSettingsDialog } from './image-settings-dialog';
 import { localize, localizeInit } from './localization';
 import { Menu } from './menu';
-import { ModeToggle } from './mode-toggle';
+//import { ModeToggle } from './mode-toggle';
 // import logo from './playcanvas-logo.png';
 import { Popup, ShowOptions } from './popup';
 import { Progress } from './progress';
@@ -18,7 +18,7 @@ import { RightToolbar } from './right-toolbar';
 import { ScenePanel } from './scene-panel';
 import { ShortcutsPopup } from './shortcuts-popup';
 import { Spinner } from './spinner';
-import { TimelinePanel } from './timeline-panel';
+//import { TimelinePanel } from './timeline-panel';
 import { Tooltips } from './tooltips';
 import { VideoSettingsDialog } from './video-settings-dialog';
 import { ViewCube } from './view-cube';
@@ -124,7 +124,7 @@ class EditorUI {
         const colorPanel = new ColorPanel(events, tooltips);
         const bottomToolbar = new BottomToolbar(events, tooltips);
         const rightToolbar = new RightToolbar(events, tooltips);
-        const modeToggle = new ModeToggle(events, tooltips);
+        //const modeToggle = new ModeToggle(events, tooltips);
         const menu = new Menu(events);
 
         canvasContainer.dom.appendChild(canvas);
@@ -136,7 +136,7 @@ class EditorUI {
         canvasContainer.append(colorPanel);
         canvasContainer.append(bottomToolbar);
         canvasContainer.append(rightToolbar);
-        canvasContainer.append(modeToggle);
+        //canvasContainer.append(modeToggle);
         canvasContainer.append(menu);
 
         // view axes container
@@ -151,11 +151,11 @@ class EditorUI {
             id: 'main-container'
         });
 
-        const timelinePanel = new TimelinePanel(events, tooltips);
+        //const timelinePanel = new TimelinePanel(events, tooltips);
         const dataPanel = new DataPanel(events);
 
         mainContainer.append(canvasContainer);
-        mainContainer.append(timelinePanel);
+        //mainContainer.append(timelinePanel);
         mainContainer.append(dataPanel);
 
         editorContainer.append(mainContainer);
