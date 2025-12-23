@@ -1,4 +1,4 @@
-import { Button, Container, Element, Label } from "@playcanvas/pcui";
+import { Button, Container, Element } from "@playcanvas/pcui";
 
 import { Events } from "../events";
 import { localize } from "./localization";
@@ -39,7 +39,7 @@ class RightToolbar extends Container {
 
     const showHideSplats = new Button({
       id: "right-toolbar-show-hide",
-      class: ["right-toolbar-toggle", "active"],
+      class: "right-toolbar-toggle",
     });
 
     const cameraFrameSelection = new Button({
@@ -86,32 +86,32 @@ class RightToolbar extends Container {
     tooltips.register(
       ringsModeToggle,
       localize("tooltip.right-toolbar.splat-mode"),
-      "left"
+      "left",
     );
     tooltips.register(
       showHideSplats,
       localize("tooltip.right-toolbar.show-hide"),
-      "left"
+      "left",
     );
     tooltips.register(
       cameraFrameSelection,
       localize("tooltip.right-toolbar.frame-selection"),
-      "left"
+      "left",
     );
     tooltips.register(
       cameraReset,
       localize("tooltip.right-toolbar.reset-camera"),
-      "left"
+      "left",
     );
     tooltips.register(
       colorPanel,
       localize("tooltip.right-toolbar.colors"),
-      "left"
+      "left",
     );
     tooltips.register(
       options,
       localize("tooltip.right-toolbar.view-options"),
-      "left"
+      "left",
     );
 
     // add event handlers

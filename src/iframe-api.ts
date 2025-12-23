@@ -36,12 +36,12 @@ const registerIframeApi = (events: Events) => {
   console.log("[IframeAPI] Initializing and adding message listener...");
   window.addEventListener("message", async (event: MessageEvent) => {
     // Log EVERYTHING received
-    console.log("[IframeAPI] Raw message received:", {
-      data: event.data,
-      origin: event.origin,
-      source: event.source ? "present" : "null",
-      type: event.data?.type,
-    });
+    // console.log("[IframeAPI] Raw message received:", {
+    //   data: event.data,
+    //   origin: event.origin,
+    //   source: event.source ? "present" : "null",
+    //   type: event.data?.type,
+    // });
 
     const source = event.source as Window | null;
     if (!source) {
@@ -60,7 +60,7 @@ const registerIframeApi = (events: Events) => {
       // Check specifically why validation might fail
       console.log(
         "[IframeAPI] processing LOAD_FILE. Blob check:",
-        event.data.fileData instanceof Blob
+        event.data.fileData instanceof Blob,
       );
 
       if (isLoadFileMessage(event.data)) {
@@ -68,7 +68,7 @@ const registerIframeApi = (events: Events) => {
           "[IframeAPI] Received valid load-file message:",
           event.data.filename,
           event.data.fileData.size,
-          "bytes"
+          "bytes",
         );
         try {
           const file = new File([event.data.fileData], event.data.filename);
@@ -87,7 +87,7 @@ const registerIframeApi = (events: Events) => {
               type: LOAD_FILE,
               success: true,
             },
-            event.origin
+            event.origin,
           );
         } catch (error) {
           console.error("[IframeAPI] Error loading file:", error);
@@ -97,13 +97,13 @@ const registerIframeApi = (events: Events) => {
               success: false,
               error: error.message,
             },
-            event.origin
+            event.origin,
           );
         }
       } else {
         console.error(
           "[IframeAPI] Invalid LOAD_FILE message structure:",
-          event.data
+          event.data,
         );
       }
     }

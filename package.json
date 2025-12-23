@@ -14,10 +14,10 @@
   "license": "MIT",
   "main": "index.js",
   "scripts": {
+    "dev": "cross-env BUILD_TYPE=debug vite",
     "build": "vite build",
     "preview": "vite preview",
     "serve": "serve dist -C",
-    "develop": "cross-env BUILD_TYPE=debug vite",
     "develop:auto-launch": "cross-env BUILD_TYPE=debug vite --open",
     "lint": "eslint src"
   },
