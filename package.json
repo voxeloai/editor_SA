@@ -1,11 +1,11 @@
 {
-  "name": "supersplat",
-  "version": "2.16.1",
-  "author": "PlayCanvas<support@playcanvas.com>",
-  "homepage": "https://playcanvas.com/supersplat/editor",
+  "name": "Voxelo.ai editor",
+  "version": "1.0",
+  "author": "vladimir.kobranov@voxelo.ai",
+  "homepage": "https://editor.voxelo.ai",
   "description": "3D Gaussian Splat Editor",
   "keywords": [
-    "playcanvas",
+    "voxelo",
     "ply",
     "gaussian",
     "splat",
