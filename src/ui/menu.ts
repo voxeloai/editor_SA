@@ -4,27 +4,28 @@ import { Events } from "../events";
 import { recentFiles } from "../recent-files";
 import { localize } from "./localization";
 import { MenuPanel, MenuItem } from "./menu-panel";
-import arrowSvg from "./svg/arrow.svg";
-import collapseSvg from "./svg/collapse.svg";
-import selectDelete from "./svg/delete.svg";
-import sceneExport from "./svg/export.svg";
-import sceneImport from "./svg/import.svg";
-import sceneNew from "./svg/new.svg";
-import sceneOpen from "./svg/open.svg";
-import scenePublish from "./svg/publish.svg";
-import sceneSave from "./svg/save.svg";
-import selectAll from "./svg/select-all.svg";
-import selectDuplicate from "./svg/select-duplicate.svg";
-import selectInverse from "./svg/select-inverse.svg";
-import selectLock from "./svg/select-lock.svg";
-import selectNone from "./svg/select-none.svg";
-import selectSeparate from "./svg/select-separate.svg";
-import selectUnlock from "./svg/select-unlock.svg";
+import arrowSvg from "./svg/arrow.svg?raw";
+import collapseSvg from "./svg/collapse.svg?raw";
+import selectDelete from "./svg/delete.svg?raw";
+import sceneExport from "./svg/export.svg?raw";
+import sceneImport from "./svg/import.svg?raw";
+import sceneNew from "./svg/new.svg?raw";
+import sceneOpen from "./svg/open.svg?raw";
+import scenePublish from "./svg/publish.svg?raw";
+import sceneSave from "./svg/save.svg?raw";
+import selectAll from "./svg/select-all.svg?raw";
+import selectDuplicate from "./svg/select-duplicate.svg?raw";
+import selectInverse from "./svg/select-inverse.svg?raw";
+import selectLock from "./svg/select-lock.svg?raw";
+import selectNone from "./svg/select-none.svg?raw";
+import selectSeparate from "./svg/select-separate.svg?raw";
+import selectUnlock from "./svg/select-unlock.svg?raw";
 
 const createSvg = (svgString: string) => {
-  const decodedStr = decodeURIComponent(
-    svgString.substring("data:image/svg+xml,".length)
-  );
+  // Vite loads as raw string (xml), Rollup loaded as data URI
+  const decodedStr = svgString.startsWith("data:")
+    ? decodeURIComponent(svgString.substring("data:image/svg+xml,".length))
+    : svgString;
   return new Element({
     dom: new DOMParser().parseFromString(decodedStr, "image/svg+xml")
       .documentElement,

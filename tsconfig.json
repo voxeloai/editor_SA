@@ -8,11 +8,16 @@
         "sourceMap": true,
         "noImplicitAny": true,
         "inlineSources": true,
+
         "resolveJsonModule": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "moduleDetection": "force"
     },
     "include": [
         "./src/**/*.ts",
-        "global.d.ts"
+        "global.d.ts",
+        "vite.config.mts"
     ],
     "exclude": [
         "src/debug.ts", // Testing file
