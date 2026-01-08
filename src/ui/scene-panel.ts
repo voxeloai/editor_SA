@@ -31,9 +31,9 @@ class ScenePanel extends Container {
     ["pointerdown", "pointerup", "pointermove", "wheel", "dblclick"].forEach(
       (eventName) => {
         this.dom.addEventListener(eventName, (event: Event) =>
-          event.stopPropagation(),
+          event.stopPropagation()
         );
-      },
+      }
     );
 
     const sceneHeader = new Container({
@@ -50,31 +50,31 @@ class ScenePanel extends Container {
       class: "panel-header-label",
     });
 
-    const sceneImport = new Container({
-      class: "panel-header-button",
-    });
-    sceneImport.dom.appendChild(createSvg(sceneImportSvg));
+    // const sceneImport = new Container({
+    //   class: "panel-header-button",
+    // });
+    // sceneImport.dom.appendChild(createSvg(sceneImportSvg));
 
-    const sceneNew = new Container({
-      class: "panel-header-button",
-    });
-    sceneNew.dom.appendChild(createSvg(sceneNewSvg));
+    // const sceneNew = new Container({
+    //   class: "panel-header-button",
+    // });
+    // sceneNew.dom.appendChild(createSvg(sceneNewSvg));
 
     sceneHeader.append(sceneIcon);
     sceneHeader.append(sceneLabel);
-    sceneHeader.append(sceneImport);
-    sceneHeader.append(sceneNew);
+    // sceneHeader.append(sceneImport);
+    // sceneHeader.append(sceneNew);
 
-    sceneImport.on("click", async () => {
-      await events.invoke("scene.import");
-    });
+    // sceneImport.on("click", async () => {
+    //   await events.invoke("scene.import");
+    // });
 
-    sceneNew.on("click", () => {
-      events.invoke("doc.new");
-    });
+    // sceneNew.on("click", () => {
+    //   events.invoke("doc.new");
+    // });
 
-    tooltips.register(sceneImport, "Import Scene", "top");
-    tooltips.register(sceneNew, "New Scene", "top");
+    // tooltips.register(sceneImport, "Import Scene", "top");
+    // tooltips.register(sceneNew, "New Scene", "top");
 
     const splatList = new SplatList(events);
 
@@ -108,7 +108,7 @@ class ScenePanel extends Container {
       new Element({
         class: "panel-header",
         height: 20,
-      }),
+      })
     );
   }
 }

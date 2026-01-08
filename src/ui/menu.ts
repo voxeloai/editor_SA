@@ -134,85 +134,85 @@ class Menu extends Container {
         isEnabled: () => !events.invoke("scene.empty"),
         onSelect: () => events.invoke("scene.export", "splat"),
       },
-      {
-        // separator
-      },
-      {
-        text: localize("menu.file.export.viewer", { ellipsis: true }),
-        icon: createSvg(sceneExport),
-        isEnabled: () => !events.invoke("scene.empty"),
-        onSelect: () => events.invoke("scene.export", "viewer"),
-      },
+      // {
+      //   // separator
+      // },
+      // {
+      //   text: localize("menu.file.export.viewer", { ellipsis: true }),
+      //   icon: createSvg(sceneExport),
+      //   isEnabled: () => !events.invoke("scene.empty"),
+      //   onSelect: () => events.invoke("scene.export", "viewer"),
+      // },
     ]);
 
     const openRecentMenuPanel = new MenuPanel([]);
 
     const fileMenuPanel = new MenuPanel([
-      {
-        text: localize("menu.file.new"),
-        icon: createSvg(sceneNew),
-        isEnabled: () => !events.invoke("scene.empty"),
-        onSelect: () => events.invoke("doc.new"),
-      },
-      {
-        text: localize("menu.file.open"),
-        icon: createSvg(sceneOpen),
-        onSelect: async () => {
-          await events.invoke("doc.open");
-        },
-      },
-      {
-        text: localize("menu.file.open-recent"),
-        icon: createSvg(sceneOpen),
-        subMenu: openRecentMenuPanel,
-        isEnabled: async () => {
-          // refresh open recent menu items when the parent menu is opened
-          try {
-            const items = await getOpenRecentItems(events);
-            openRecentMenuPanel.setItems(items);
-            return items.length > 0;
-          } catch (error) {
-            console.error("Failed to load recent files:", error);
-            return false;
-          }
-        },
-      },
-      {
-        // separator
-      },
+      // {
+      //   text: localize("menu.file.new"),
+      //   icon: createSvg(sceneNew),
+      //   isEnabled: () => !events.invoke("scene.empty"),
+      //   onSelect: () => events.invoke("doc.new"),
+      // },
+      // {
+      //   text: localize("menu.file.open"),
+      //   icon: createSvg(sceneOpen),
+      //   onSelect: async () => {
+      //     await events.invoke("doc.open");
+      //   },
+      // },
+      // {
+      //   text: localize("menu.file.open-recent"),
+      //   icon: createSvg(sceneOpen),
+      //   subMenu: openRecentMenuPanel,
+      //   isEnabled: async () => {
+      //     // refresh open recent menu items when the parent menu is opened
+      //     try {
+      //       const items = await getOpenRecentItems(events);
+      //       openRecentMenuPanel.setItems(items);
+      //       return items.length > 0;
+      //     } catch (error) {
+      //       console.error("Failed to load recent files:", error);
+      //       return false;
+      //     }
+      //   },
+      // },
+      // {
+      //   // separator
+      // },
       {
         text: localize("menu.file.save"),
         icon: createSvg(sceneSave),
         isEnabled: () => events.invoke("doc.name"),
         onSelect: async () => await events.invoke("doc.save"),
       },
-      {
-        text: localize("menu.file.save-as", { ellipsis: true }),
-        icon: createSvg(sceneSave),
-        isEnabled: () => !events.invoke("scene.empty"),
-        onSelect: async () => await events.invoke("doc.saveAs"),
-      },
-      {
-        // separator
-      },
-      {
-        text: localize("menu.file.import", { ellipsis: true }),
-        icon: createSvg(sceneImport),
-        onSelect: async () => {
-          await events.invoke("scene.import");
-        },
-      },
+      // {
+      //   text: localize("menu.file.save-as", { ellipsis: true }),
+      //   icon: createSvg(sceneSave),
+      //   isEnabled: () => !events.invoke("scene.empty"),
+      //   onSelect: async () => await events.invoke("doc.saveAs"),
+      // },
+      // {
+      // separator
+      // },
+      // {
+      //   text: localize("menu.file.import", { ellipsis: true }),
+      //   icon: createSvg(sceneImport),
+      //   onSelect: async () => {
+      //     await events.invoke("scene.import");
+      //   },
+      // },
       {
         text: localize("menu.file.export"),
         icon: createSvg(sceneExport),
         subMenu: exportMenuPanel,
       },
-      {
-        text: localize("menu.file.publish", { ellipsis: true }),
-        icon: createSvg(scenePublish),
-        isEnabled: () => !events.invoke("scene.empty"),
-        onSelect: async () => await events.invoke("show.publishSettingsDialog"),
-      },
+      // {
+      //   text: localize("menu.file.publish", { ellipsis: true }),
+      //   icon: createSvg(scenePublish),
+      //   isEnabled: () => !events.invoke("scene.empty"),
+      //   onSelect: async () => await events.invoke("show.publishSettingsDialog"),
+      // },
     ]);
 
     const selectionMenuPanel = new MenuPanel([
@@ -284,11 +284,11 @@ class Menu extends Container {
         icon: createSvg(sceneExport),
         onSelect: async () => await events.invoke("show.imageSettingsDialog"),
       },
-      {
-        text: localize("menu.render.video", { ellipsis: true }),
-        icon: createSvg(sceneExport),
-        onSelect: async () => await events.invoke("show.videoSettingsDialog"),
-      },
+      // {
+      //   text: localize("menu.render.video", { ellipsis: true }),
+      //   icon: createSvg(sceneExport),
+      //   onSelect: async () => await events.invoke("show.videoSettingsDialog"),
+      // },
     ]);
 
     const helpMenuPanel = new MenuPanel([
