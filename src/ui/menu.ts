@@ -183,8 +183,10 @@ class Menu extends Container {
       {
         text: localize("menu.file.save"),
         icon: createSvg(sceneSave),
-        isEnabled: () => events.invoke("doc.name"),
-        onSelect: async () => await events.invoke("doc.save"),
+        // isEnabled: () => events.invoke("doc.name"),  scene.empty
+        // onSelect: async () => await events.invoke("doc.save"), scene.saveScan
+        isEnabled: () => !events.invoke("scene.empty"),
+        onSelect: async () => await events.invoke("scene.saveScan"),
       },
       // {
       //   text: localize("menu.file.save-as", { ellipsis: true }),
