@@ -142,7 +142,7 @@ const getVertexProperties = (splatData: GSplatData) => {
     splatData
       .getElement("vertex")
       .properties.filter((p: any) => p.storage)
-      .map((p: any) => p.name)
+      .map((p: any) => p.name),
   );
 };
 
@@ -334,13 +334,13 @@ class SingleSplat {
 
     const hasPosition = ["x", "y", "z"].every((v) => data.hasOwnProperty(v));
     const hasRotation = ["rot_0", "rot_1", "rot_2", "rot_3"].every((v) =>
-      data.hasOwnProperty(v)
+      data.hasOwnProperty(v),
     );
     const hasScale = ["scale_0", "scale_1", "scale_2"].every((v) =>
-      data.hasOwnProperty(v)
+      data.hasOwnProperty(v),
     );
     const hasColor = ["f_dc_0", "f_dc_1", "f_dc_2"].every((v) =>
-      data.hasOwnProperty(v)
+      data.hasOwnProperty(v),
     );
     const hasOpacity = data.hasOwnProperty("opacity");
 
@@ -364,7 +364,7 @@ class SingleSplat {
         if (!cacheMap.has(splat)) {
           const transformCache = new SplatTransformCache(
             splat,
-            serializeSettings.keepWorldTransform
+            serializeSettings.keepWorldTransform,
           );
 
           const srcPropNames = getVertexProperties(splat.splatData);
@@ -382,7 +382,7 @@ class SingleSplat {
               srcProps[name] =
                 b < srcSHCoeffs
                   ? (splat.splatData.getProp(
-                      shNames[a * srcSHCoeffs + b]
+                      shNames[a * srcSHCoeffs + b],
                     ) as Float32Array)
                   : null;
             } else {
@@ -474,7 +474,7 @@ class SingleSplat {
         const applyTransform = (
           c: { r: number; g: number; b: number },
           s: { r: number; g: number; b: number },
-          offset: number
+          offset: number,
         ) => {
           // offset and scale
           c.r = offset + c.r * s.r;
@@ -543,7 +543,7 @@ const serializePly = async (
   splats: Splat[],
   serializeSettings: SerializeSettings,
   writer: Writer,
-  progress?: ProgressFunc
+  progress?: ProgressFunc,
 ): Promise<any> => {
   const { maxSHBands, keepStateData } = serializeSettings;
 
@@ -584,12 +584,12 @@ const serializePly = async (
 
   const singleSplat = new SingleSplat(
     props.map((p) => p.name),
-    serializeSettings
+    serializeSettings,
   );
 
   const gaussianSizeBytes = props.reduce(
     (tot, p) => tot + DataTypeSize(p.type),
-    0
+    0,
   );
 
   const buf = new Uint8Array(1024 * gaussianSizeBytes);
@@ -602,7 +602,7 @@ const serializePly = async (
   const progressWriter = new ProgressWriter(
     writer,
     header.byteLength + totalGaussians * gaussianSizeBytes,
-    progress
+    progress,
   );
 
   // write encoded header
@@ -788,7 +788,7 @@ class Chunk {
       const a = [q.x, q.y, q.z, q.w];
       const largest = a.reduce(
         (curr, v, i) => (Math.abs(v) > Math.abs(a[curr]) ? i : curr),
-        0
+        0,
       );
 
       if (a[largest] < 0) {
@@ -814,7 +814,7 @@ class Chunk {
       this.position[i] = pack111011(
         normalize(x[i], px.min, px.max),
         normalize(y[i], py.min, py.max),
-        normalize(z[i], pz.min, pz.max)
+        normalize(z[i], pz.min, pz.max),
       );
 
       this.rotation[i] = packRot(rot_0[i], rot_1[i], rot_2[i], rot_3[i]);
@@ -822,14 +822,14 @@ class Chunk {
       this.scale[i] = pack111011(
         normalize(scale_0[i], sx.min, sx.max),
         normalize(scale_1[i], sy.min, sy.max),
-        normalize(scale_2[i], sz.min, sz.max)
+        normalize(scale_2[i], sz.min, sz.max),
       );
 
       this.color[i] = pack8888(
         normalize(f_dc_0[i], cr.min, cr.max),
         normalize(f_dc_1[i], cg.min, cg.max),
         normalize(f_dc_2[i], cb.min, cb.max),
-        1 / (1 + Math.exp(-opacity[i]))
+        1 / (1 + Math.exp(-opacity[i])),
       );
     }
 
@@ -924,7 +924,7 @@ const serializePlyCompressed = async (
   splats: Splat[],
   options: SerializeSettings,
   writer: Writer,
-  progress?: ProgressFunc
+  progress?: ProgressFunc,
 ): Promise<any> => {
   const { maxSHBands } = options;
 
@@ -983,7 +983,7 @@ const serializePlyCompressed = async (
   // user-chosen maxSHBands
   const outputSHBands = (() => {
     const splatBands = splats.map((s) =>
-      calcSHBands(getVertexProperties(s.splatData))
+      calcSHBands(getVertexProperties(s.splatData)),
     );
     return Math.min(maxSHBands ?? 3, Math.max(...splatBands));
   })();
@@ -1032,7 +1032,7 @@ const serializePlyCompressed = async (
       "rot_2",
       "rot_3",
     ],
-    options
+    options,
   );
 
   const prepareChunk = (chunk: Chunk, i: number) => {
@@ -1123,14 +1123,14 @@ const serializePlyCompressed = async (
     await progressWriter.write(
       num === 256
         ? vertexDataUint8
-        : new Uint8Array(vertexData.buffer, 0, num * 4 * 4)
+        : new Uint8Array(vertexData.buffer, 0, num * 4 * 4),
     );
   }
 
   // write sh
   const singleSplatSH = new SingleSplat(
     shNames.slice(0, outputSHCoeffs * 3),
-    options
+    options,
   );
 
   const shData = new Uint8Array(outputSHCoeffs * 3 * 256);
@@ -1149,7 +1149,7 @@ const serializePlyCompressed = async (
         const nvalue = singleSplatSH.data[shNames[k]] / 8 + 0.5;
         shData[offset + k] = Math.max(
           0,
-          Math.min(255, Math.trunc(nvalue * 256))
+          Math.min(255, Math.trunc(nvalue * 256)),
         );
       }
     }
@@ -1157,7 +1157,7 @@ const serializePlyCompressed = async (
     await progressWriter.write(
       num === 256
         ? shData
-        : new Uint8Array(shData.buffer, 0, num * outputSHCoeffs * 3)
+        : new Uint8Array(shData.buffer, 0, num * outputSHCoeffs * 3),
     );
   }
 
@@ -1167,7 +1167,7 @@ const serializePlyCompressed = async (
 const serializeSplat = async (
   splats: Splat[],
   options: SerializeSettings,
-  writer: Writer
+  writer: Writer,
 ) => {
   // create filter and count total gaussians
   const filter = new GaussianFilter(options);
@@ -1229,7 +1229,7 @@ const serializeSplat = async (
       dataView.setUint8(off + 26, clamp((0.5 + SH_C0 * data.f_dc_2) * 255));
       dataView.setUint8(
         off + 27,
-        clamp((1 / (1 + Math.exp(-data.opacity))) * 255)
+        clamp((1 / (1 + Math.exp(-data.opacity))) * 255),
       );
 
       dataView.setUint8(off + 28, clamp(data.rot_0 * 128 + 128));
@@ -1258,7 +1258,7 @@ const serializeViewer = async (
   splats: Splat[],
   serializeSettings: SerializeSettings,
   options: ViewerExportSettings,
-  writer: Writer
+  writer: Writer,
 ) => {
   const { experienceSettings } = options;
 
@@ -1288,7 +1288,7 @@ const serializeViewer = async (
       .replace(settings, `settings: ${JSON.stringify(experienceSettings)}`)
       .replace(
         content,
-        `fetch("data:application/ply;base64,${encodeBase64(plyBuffers)}")`
+        `fetch("data:application/ply;base64,${encodeBase64(plyBuffers)}")`,
       );
 
     await writer.write(new TextEncoder().encode(html));
@@ -1299,7 +1299,7 @@ const serializeViewer = async (
     await zipWriter.file("index.js", indexJs);
     await zipWriter.file(
       "settings.json",
-      JSON.stringify(experienceSettings, null, 4)
+      JSON.stringify(experienceSettings, null, 4),
     );
     await zipWriter.file("scene.compressed.ply", plyBuffers);
     await zipWriter.close();

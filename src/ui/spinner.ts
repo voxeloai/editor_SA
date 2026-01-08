@@ -1,30 +1,30 @@
-import { Container, Element } from '@playcanvas/pcui';
+import { Container, Element } from "@playcanvas/pcui";
 
 class Spinner extends Container {
-    constructor(args = {}) {
-        args = {
-            ...args,
-            id: 'spinner-container',
-            hidden: true
-        };
+  constructor(args = {}) {
+    args = {
+      ...args,
+      id: "spinner-container",
+      hidden: true,
+    };
 
-        super(args);
+    super(args);
 
-        this.dom.tabIndex = 0;
+    this.dom.tabIndex = 0;
 
-        const spinner = new Element({
-            dom: 'div',
-            class: 'spinner'
-        });
+    const spinner = new Element({
+      dom: "div",
+      class: "spinner",
+    });
 
-        this.append(spinner);
+    this.append(spinner);
 
-        this.dom.addEventListener('keydown', (event) => {
-            if (this.hidden) return;
-            event.stopPropagation();
-            event.preventDefault();
-        });
-    }
+    this.dom.addEventListener("keydown", (event) => {
+      if (this.hidden) return;
+      event.stopPropagation();
+      event.preventDefault();
+    });
+  }
 }
 
 export { Spinner };

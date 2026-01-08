@@ -31,9 +31,9 @@ class ScenePanel extends Container {
     ["pointerdown", "pointerup", "pointermove", "wheel", "dblclick"].forEach(
       (eventName) => {
         this.dom.addEventListener(eventName, (event: Event) =>
-          event.stopPropagation()
+          event.stopPropagation(),
         );
-      }
+      },
     );
 
     const sceneHeader = new Container({
@@ -108,7 +108,7 @@ class ScenePanel extends Container {
       new Element({
         class: "panel-header",
         height: 20,
-      })
+      }),
     );
   }
 }

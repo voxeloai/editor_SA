@@ -167,25 +167,25 @@ class BottomToolbar extends Container {
     undo.dom.addEventListener("click", () => events.fire("edit.undo"));
     redo.dom.addEventListener("click", () => events.fire("edit.redo"));
     polygon.dom.addEventListener("click", () =>
-      events.fire("tool.polygonSelection")
+      events.fire("tool.polygonSelection"),
     );
     lasso.dom.addEventListener("click", () =>
-      events.fire("tool.lassoSelection")
+      events.fire("tool.lassoSelection"),
     );
     brush.dom.addEventListener("click", () =>
-      events.fire("tool.brushSelection")
+      events.fire("tool.brushSelection"),
     );
     flood.dom.addEventListener("click", () =>
-      events.fire("tool.floodSelection")
+      events.fire("tool.floodSelection"),
     );
     picker.dom.addEventListener("click", () =>
-      events.fire("tool.rectSelection")
+      events.fire("tool.rectSelection"),
     );
     eyedropper.dom.addEventListener("click", () =>
-      events.fire("tool.eyedropperSelection")
+      events.fire("tool.eyedropperSelection"),
     );
     sphere.dom.addEventListener("click", () =>
-      events.fire("tool.sphereSelection")
+      events.fire("tool.sphereSelection"),
     );
     box.dom.addEventListener("click", () => events.fire("tool.boxSelection"));
     translate.dom.addEventListener("click", () => events.fire("tool.move"));
@@ -193,10 +193,10 @@ class BottomToolbar extends Container {
     scale.dom.addEventListener("click", () => events.fire("tool.scale"));
     measure.dom.addEventListener("click", () => events.fire("tool.measure"));
     coordSpace.dom.addEventListener("click", () =>
-      events.fire("tool.toggleCoordSpace")
+      events.fire("tool.toggleCoordSpace"),
     );
     origin.dom.addEventListener("click", () =>
-      events.fire("pivot.toggleOrigin")
+      events.fire("pivot.toggleOrigin"),
     );
 
     events.on("edit.canUndo", (value: boolean) => {
@@ -211,7 +211,7 @@ class BottomToolbar extends Container {
       brush.class[toolName === "brushSelection" ? "add" : "remove"]("active");
       flood.class[toolName === "floodSelection" ? "add" : "remove"]("active");
       polygon.class[toolName === "polygonSelection" ? "add" : "remove"](
-        "active"
+        "active",
       );
       lasso.class[toolName === "lassoSelection" ? "add" : "remove"]("active");
       sphere.class[toolName === "sphereSelection" ? "add" : "remove"]("active");
@@ -221,7 +221,7 @@ class BottomToolbar extends Container {
       scale.class[toolName === "scale" ? "add" : "remove"]("active");
       measure.class[toolName === "measure" ? "add" : "remove"]("active");
       eyedropper.class[toolName === "eyedropperSelection" ? "add" : "remove"](
-        "active"
+        "active",
       );
     });
 
@@ -249,12 +249,12 @@ class BottomToolbar extends Container {
     tooltips.register(measure, localize("tooltip.bottom-toolbar.measure"));
     tooltips.register(
       coordSpace,
-      localize("tooltip.bottom-toolbar.local-space")
+      localize("tooltip.bottom-toolbar.local-space"),
     );
     tooltips.register(origin, localize("tooltip.bottom-toolbar.bound-center"));
     tooltips.register(
       eyedropper,
-      localize("tooltip.bottom-toolbar.eyedropper")
+      localize("tooltip.bottom-toolbar.eyedropper"),
     );
   }
 }

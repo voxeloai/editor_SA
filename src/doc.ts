@@ -69,7 +69,7 @@ const registerDocEvents = (scene: Scene, events: Events) => {
       message: localize(
         events.invoke("scene.dirty")
           ? "doc.unsaved-message"
-          : "doc.reset-message"
+          : "doc.reset-message",
       ),
     });
 
@@ -100,7 +100,7 @@ const registerDocEvents = (scene: Scene, events: Events) => {
       const zip = new JSZip();
       await zip.loadAsync(file);
       const document = JSON.parse(
-        await zip.file("document.json").async("text")
+        await zip.file("document.json").async("text"),
       );
 
       // run through each splat and load it
@@ -153,12 +153,14 @@ const registerDocEvents = (scene: Scene, events: Events) => {
     }
   };
 
+  // file save
   const saveDocument = async (options: {
     stream?: FileSystemWritableFileStream;
     filename?: string;
   }) => {
     events.fire("startSpinner");
 
+    console.log("saving");
     try {
       const splats = events.invoke("scene.allSplats") as Splat[];
 
@@ -230,7 +232,7 @@ const registerDocEvents = (scene: Scene, events: Events) => {
         documentFileHandle = handle;
         recentFiles.add(handle);
       }
-    }
+    },
   );
 
   events.function("doc.open", async () => {
@@ -305,7 +307,7 @@ const registerDocEvents = (scene: Scene, events: Events) => {
           });
         }
       }
-    }
+    },
   );
 
   events.function("doc.save", async () => {

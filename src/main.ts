@@ -237,7 +237,7 @@ const main = async () => {
     const cnv = (v: number) =>
       `${Math.max(0, Math.min(255, v * 255)).toFixed(0)}`;
     document.body.style.backgroundColor = `rgba(${cnv(clr.r)},${cnv(
-      clr.g
+      clr.g,
     )},${cnv(clr.b)},1)`;
   });
   events.on("selectedClr", (clr: Color) => {
@@ -274,11 +274,11 @@ const main = async () => {
   const toolManager = new ToolManager(events);
   toolManager.register(
     "rectSelection",
-    new RectSelection(events, editorUI.toolsContainer.dom)
+    new RectSelection(events, editorUI.toolsContainer.dom),
   );
   toolManager.register(
     "brushSelection",
-    new BrushSelection(events, editorUI.toolsContainer.dom, mask)
+    new BrushSelection(events, editorUI.toolsContainer.dom, mask),
   );
   toolManager.register(
     "floodSelection",
@@ -286,32 +286,32 @@ const main = async () => {
       events,
       editorUI.toolsContainer.dom,
       mask,
-      editorUI.canvasContainer
-    )
+      editorUI.canvasContainer,
+    ),
   );
   toolManager.register(
     "polygonSelection",
-    new PolygonSelection(events, editorUI.toolsContainer.dom, mask)
+    new PolygonSelection(events, editorUI.toolsContainer.dom, mask),
   );
   toolManager.register(
     "lassoSelection",
-    new LassoSelection(events, editorUI.toolsContainer.dom, mask)
+    new LassoSelection(events, editorUI.toolsContainer.dom, mask),
   );
   toolManager.register(
     "sphereSelection",
-    new SphereSelection(events, scene, editorUI.canvasContainer)
+    new SphereSelection(events, scene, editorUI.canvasContainer),
   );
   toolManager.register(
     "boxSelection",
-    new BoxSelection(events, scene, editorUI.canvasContainer)
+    new BoxSelection(events, scene, editorUI.canvasContainer),
   );
   toolManager.register(
     "eyedropperSelection",
     new EyedropperSelection(
       events,
       editorUI.toolsContainer.dom,
-      editorUI.canvasContainer
-    )
+      editorUI.canvasContainer,
+    ),
   );
   toolManager.register("move", new MoveTool(events, scene));
   toolManager.register("rotate", new RotateTool(events, scene));
@@ -322,8 +322,8 @@ const main = async () => {
       events,
       scene,
       editorUI.toolsContainer.dom,
-      editorUI.canvasContainer
-    )
+      editorUI.canvasContainer,
+    ),
   );
 
   editorUI.toolsContainer.dom.appendChild(maskCanvas);

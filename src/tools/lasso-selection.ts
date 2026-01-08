@@ -1,150 +1,176 @@
-import { Events } from '../events';
+import { Events } from "../events";
 
-type Point = { x: number, y: number };
+type Point = { x: number; y: number };
 
 class LassoSelection {
-    activate: () => void;
-    deactivate: () => void;
+  activate: () => void;
+  deactivate: () => void;
 
-    constructor(events: Events, parent: HTMLElement, mask: { canvas: HTMLCanvasElement, context: CanvasRenderingContext2D }) {
-        // create svg
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.classList.add('tool-svg', 'hidden');
-        svg.id = 'lasso-select-svg';
-        parent.appendChild(svg);
+  constructor(
+    events: Events,
+    parent: HTMLElement,
+    mask: { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D },
+  ) {
+    // create svg
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.classList.add("tool-svg", "hidden");
+    svg.id = "lasso-select-svg";
+    parent.appendChild(svg);
 
-        // create polygon element
-        const polygon = document.createElementNS(svg.namespaceURI, 'polygon') as SVGPolygonElement;
-        svg.appendChild(polygon);
+    // create polygon element
+    const polygon = document.createElementNS(
+      svg.namespaceURI,
+      "polygon",
+    ) as SVGPolygonElement;
+    svg.appendChild(polygon);
 
-        const { canvas, context } = mask;
-        let points: Point[] = [];
-        let currentPoint: Point = null;
-        let lastPointTime = 0;
+    const { canvas, context } = mask;
+    let points: Point[] = [];
+    let currentPoint: Point = null;
+    let lastPointTime = 0;
 
-        const dist = (a: Point, b: Point) => {
-            return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-        };
+    const dist = (a: Point, b: Point) => {
+      return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+    };
 
-        const isClosed = () => {
-            return points.length > 1 && dist(currentPoint, points[0]) < 8;
-        };
+    const isClosed = () => {
+      return points.length > 1 && dist(currentPoint, points[0]) < 8;
+    };
 
-        const paint = () => {
-            polygon.setAttribute('points', [...points, currentPoint].reduce((prev, current) => `${prev}${current.x}, ${current.y} `, ''));
-            polygon.setAttribute('stroke', isClosed() ? '#fa6' : '#f60');
-        };
+    const paint = () => {
+      polygon.setAttribute(
+        "points",
+        [...points, currentPoint].reduce(
+          (prev, current) => `${prev}${current.x}, ${current.y} `,
+          "",
+        ),
+      );
+      polygon.setAttribute("stroke", isClosed() ? "#fa6" : "#f60");
+    };
 
-        let dragId: number | undefined;
+    let dragId: number | undefined;
 
-        const update = (e: PointerEvent) => {
-            currentPoint = { x: e.offsetX, y: e.offsetY };
+    const update = (e: PointerEvent) => {
+      currentPoint = { x: e.offsetX, y: e.offsetY };
 
-            const distance = points.length === 0 ? 0 : dist(currentPoint, points[points.length - 1]);
-            const millis = Date.now() - lastPointTime;
-            const preventCorners = distance > 20;
-            const slowNarrowSpacing = millis > 500 && distance > 2;
-            const fasterMediumSpacing = millis > 200 && distance > 10;
-            const firstPoints = points.length === 0;
+      const distance =
+        points.length === 0 ? 0 : dist(currentPoint, points[points.length - 1]);
+      const millis = Date.now() - lastPointTime;
+      const preventCorners = distance > 20;
+      const slowNarrowSpacing = millis > 500 && distance > 2;
+      const fasterMediumSpacing = millis > 200 && distance > 10;
+      const firstPoints = points.length === 0;
 
-            if (dragId !== undefined && (preventCorners || slowNarrowSpacing || fasterMediumSpacing || firstPoints)) {
-                points.push(currentPoint);
-                lastPointTime = Date.now();
-            }
-            paint();
-        };
+      if (
+        dragId !== undefined &&
+        (preventCorners ||
+          slowNarrowSpacing ||
+          fasterMediumSpacing ||
+          firstPoints)
+      ) {
+        points.push(currentPoint);
+        lastPointTime = Date.now();
+      }
+      paint();
+    };
 
-        const commitSelection = (e: PointerEvent) => {
-            // initialize canvas
-            if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
-                canvas.width = parent.clientWidth;
-                canvas.height = parent.clientHeight;
-            }
+    const commitSelection = (e: PointerEvent) => {
+      // initialize canvas
+      if (
+        canvas.width !== parent.clientWidth ||
+        canvas.height !== parent.clientHeight
+      ) {
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+      }
 
-            // clear canvas
-            context.clearRect(0, 0, canvas.width, canvas.height);
+      // clear canvas
+      context.clearRect(0, 0, canvas.width, canvas.height);
 
-            context.beginPath();
-            context.fillStyle = '#f60';
-            context.beginPath();
-            points.forEach((p, idx) => {
-                if (idx === 0) {
-                    context.moveTo(p.x, p.y);
-                } else {
-                    context.lineTo(p.x, p.y);
-                }
-            });
-            context.closePath();
-            context.fill();
+      context.beginPath();
+      context.fillStyle = "#f60";
+      context.beginPath();
+      points.forEach((p, idx) => {
+        if (idx === 0) {
+          context.moveTo(p.x, p.y);
+        } else {
+          context.lineTo(p.x, p.y);
+        }
+      });
+      context.closePath();
+      context.fill();
 
-            events.fire(
-                'select.byMask',
-                e.shiftKey ? 'add' : (e.ctrlKey ? 'remove' : 'set'),
-                canvas,
-                context
-            );
-        };
+      events.fire(
+        "select.byMask",
+        e.shiftKey ? "add" : e.ctrlKey ? "remove" : "set",
+        canvas,
+        context,
+      );
+    };
 
-        const pointerdown = (e: PointerEvent) => {
-            if (dragId === undefined && (e.pointerType === 'mouse' ? e.button === 0 : e.isPrimary)) {
-                e.preventDefault();
-                e.stopPropagation();
+    const pointerdown = (e: PointerEvent) => {
+      if (
+        dragId === undefined &&
+        (e.pointerType === "mouse" ? e.button === 0 : e.isPrimary)
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
 
-                dragId = e.pointerId;
-                parent.setPointerCapture(dragId);
+        dragId = e.pointerId;
+        parent.setPointerCapture(dragId);
 
-                update(e);
-            }
-        };
+        update(e);
+      }
+    };
 
-        const pointermove = (e: PointerEvent) => {
-            if (dragId !== undefined) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
+    const pointermove = (e: PointerEvent) => {
+      if (dragId !== undefined) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
 
-            update(e);
-        };
+      update(e);
+    };
 
-        const dragEnd = () => {
-            parent.releasePointerCapture(dragId);
-            dragId = undefined;
-        };
+    const dragEnd = () => {
+      parent.releasePointerCapture(dragId);
+      dragId = undefined;
+    };
 
-        const pointerup = (e: PointerEvent) => {
-            if (e.pointerId === dragId) {
-                e.preventDefault();
-                e.stopPropagation();
+    const pointerup = (e: PointerEvent) => {
+      if (e.pointerId === dragId) {
+        e.preventDefault();
+        e.stopPropagation();
 
-                dragEnd();
+        dragEnd();
 
-                commitSelection(e);
+        commitSelection(e);
 
-                points = [];
-                paint();
-            }
-        };
+        points = [];
+        paint();
+      }
+    };
 
-        this.activate = () => {
-            svg.classList.remove('hidden');
-            parent.style.display = 'block';
-            parent.addEventListener('pointerdown', pointerdown);
-            parent.addEventListener('pointermove', pointermove);
-            parent.addEventListener('pointerup', pointerup);
-        };
+    this.activate = () => {
+      svg.classList.remove("hidden");
+      parent.style.display = "block";
+      parent.addEventListener("pointerdown", pointerdown);
+      parent.addEventListener("pointermove", pointermove);
+      parent.addEventListener("pointerup", pointerup);
+    };
 
-        this.deactivate = () => {
-            // cancel active operation
-            if (dragId !== undefined) {
-                dragEnd();
-            }
-            svg.classList.add('hidden');
-            parent.style.display = 'none';
-            parent.removeEventListener('pointerdown', pointerdown);
-            parent.removeEventListener('pointermove', pointermove);
-            parent.removeEventListener('pointerup', pointerup);
-        };
-    }
+    this.deactivate = () => {
+      // cancel active operation
+      if (dragId !== undefined) {
+        dragEnd();
+      }
+      svg.classList.add("hidden");
+      parent.style.display = "none";
+      parent.removeEventListener("pointerdown", pointerdown);
+      parent.removeEventListener("pointermove", pointermove);
+      parent.removeEventListener("pointerup", pointerup);
+    };
+  }
 }
 
 export { LassoSelection };

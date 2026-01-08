@@ -1,4 +1,4 @@
-@use 'pcui-theme-grey.scss' as theme;
+@use "pcui-theme-grey.scss" as theme;
 
 $text-primary: theme.$text-primary;
 $text-secondary: theme.$text-secondary;
@@ -10,8 +10,8 @@ $error: theme.$error;
 $clr-default: #b3aaac;
 $clr-disabled: #7c7678;
 $clr-active: white;
-$clr-hilight: #A737D7;
-$clr-icon-hilight: #A737D7;
+$clr-hilight: #a737d7;
+$clr-icon-hilight: #a737d7;
 
 $bcg-lighter: #444;
 $bcg-light: #555;

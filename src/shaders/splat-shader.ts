@@ -1,4 +1,4 @@
-const vertexShader = /* glsl*/`
+const vertexShader = /* glsl*/ `
 #include "gsplatCommonVS"
 
 uniform sampler2D splatState;
@@ -142,7 +142,7 @@ void main(void) {
 }
 `;
 
-const fragmentShader = /* glsl*/`
+const fragmentShader = /* glsl*/ `
 varying mediump vec3 texCoordIsLocked;
 varying mediump vec4 color;
 
@@ -187,7 +187,7 @@ void main(void) {
 }
 `;
 
-const gsplatCenter = /* glsl*/`
+const gsplatCenter = /* glsl*/ `
 uniform mat4 matrix_model;
 uniform mat4 matrix_view;
 uniform mat4 matrix_projection;

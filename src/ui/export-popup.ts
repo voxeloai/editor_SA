@@ -53,7 +53,7 @@ class ExportPopup extends Container {
   show: (
     exportType: ExportType,
     splatNames: string[],
-    showFilenameEdit: boolean
+    showFilenameEdit: boolean,
   ) => Promise<null | SceneExportOptions>;
   hide: () => void;
   destroy: () => void;
@@ -88,7 +88,7 @@ class ExportPopup extends Container {
     header.append(
       createSvg(sceneExport, {
         id: "icon",
-      })
+      }),
     );
 
     header.append(headerText);
@@ -354,7 +354,7 @@ class ExportPopup extends Container {
     const reset = (
       exportType: ExportType,
       splatNames: string[],
-      hasPoses: boolean
+      hasPoses: boolean,
     ) => {
       const allRows = [
         viewerTypeRow,
@@ -439,7 +439,7 @@ class ExportPopup extends Container {
     this.show = (
       exportType: ExportType,
       splatNames: string[],
-      showFilenameEdit: boolean
+      showFilenameEdit: boolean,
     ) => {
       const frames = events.invoke("timeline.frames");
       const frameRate = events.invoke("timeline.frameRate");

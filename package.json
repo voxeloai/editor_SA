@@ -19,7 +19,8 @@
     "preview": "vite preview",
     "serve": "serve dist -C",
     "develop:auto-launch": "cross-env BUILD_TYPE=debug vite --open",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "format": "prettier --write src"
   },
   "devDependencies": {
     "@playcanvas/eslint-config": "2.1.0",

@@ -65,7 +65,7 @@ class Scene {
     events: Events,
     config: SceneConfig,
     canvas: HTMLCanvasElement,
-    graphicsDevice: GraphicsDevice
+    graphicsDevice: GraphicsDevice,
   ) {
     this.events = events;
     this.config = config;
@@ -138,14 +138,14 @@ class Scene {
       EVENT_PRERENDER_LAYER,
       (camera: CameraComponent, layer: Layer, transparent: boolean) => {
         camera.fire("preRenderLayer", layer, transparent);
-      }
+      },
     );
 
     this.app.scene.on(
       EVENT_POSTRENDER_LAYER,
       (camera: CameraComponent, layer: Layer, transparent: boolean) => {
         camera.fire("postRenderLayer", layer, transparent);
-      }
+      },
     );
 
     // background layer
@@ -200,7 +200,7 @@ class Scene {
     this.assetLoader = new AssetLoader(
       this.app,
       events,
-      this.app.graphicsDevice.maxAnisotropy
+      this.app.graphicsDevice.maxAnisotropy,
     );
 
     // create root entities
@@ -361,10 +361,10 @@ class Scene {
 
     // update render target size
     this.targetSize.width = Math.ceil(
-      this.app.graphicsDevice.width / this.config.camera.pixelScale
+      this.app.graphicsDevice.width / this.config.camera.pixelScale,
     );
     this.targetSize.height = Math.ceil(
-      this.app.graphicsDevice.height / this.config.camera.pixelScale
+      this.app.graphicsDevice.height / this.config.camera.pixelScale,
     );
 
     this.forEachElement((e) => e.onPreRender());
@@ -385,14 +385,14 @@ class Scene {
             Color.RED,
             true,
             undefined,
-            splat.entity.getWorldTransform()
+            splat.entity.getWorldTransform(),
           );
 
           const world = splat.worldBound;
           this.app.drawWireAlignedBox(
             world.getMin(),
             world.getMax(),
-            Color.GREEN
+            Color.GREEN,
           );
         }
       });
@@ -401,7 +401,7 @@ class Scene {
       this.app.drawWireAlignedBox(
         this.bound.getMin(),
         this.bound.getMax(),
-        Color.BLUE
+        Color.BLUE,
       );
     }
   }

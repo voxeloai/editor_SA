@@ -2,6 +2,7 @@ import { Events } from "./events";
 
 const IS_SCENE_DIRTY = "supersplat:is-scene-dirty";
 const LOAD_FILE = "supersplat:load-file";
+const SAVE_SCAN = "supersplat:save-scan";
 
 interface IsSceneDirtyQuery {
   type: typeof IS_SCENE_DIRTY;
@@ -32,7 +33,18 @@ const isLoadFileMessage = (data: any): data is LoadFileMessage => {
   );
 };
 
+// TODO: implement saveScan to parent (blob to parent)
+const saveScan = () => {
+  if (window.parent && window.parent !== window) {
+    console.log("[IframeAPI] Sending save-scan message to parent");
+    window.parent.postMessage({ type: SAVE_SCAN }, "*");
+  } else {
+    console.log("[IframeAPI] Not in an iframe, log instead: save-scan");
+  }
+};
+
 const registerIframeApi = (events: Events) => {
+  events.function("scene.saveScan", saveScan);
   console.log("[IframeAPI] Initializing and adding message listener...");
   window.addEventListener("message", async (event: MessageEvent) => {
     // Log EVERYTHING received
@@ -116,4 +128,4 @@ const registerIframeApi = (events: Events) => {
   }
 };
 
-export { registerIframeApi };
+export { saveScan, registerIframeApi };
